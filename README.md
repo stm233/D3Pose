@@ -13,10 +13,10 @@ CLIP
 
 ## Pipeline
 
-![Pipeline](assets/Picture1.png)
+![Pipeline](assets/picture1.png)
 Inspired by the [vanilla transformer](https://arxiv.org/pdf/1706.03762.pdf) in NLP. This paper utilizes an encoder-decoder architecture to strengthen temporal smoothness. The vanilla self-attention module is replaced by the swin transformer module.
 
-![cross attention](assets/Picture2.png)
+![cross attention](assets/picture2.png)
 
 ## References
 
