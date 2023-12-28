@@ -13,7 +13,11 @@ CLIP
 
 ## Pipeline
 
-![Pipeline](assets/workflow.png)
+![Pipeline](assets/pipeline.png)
 Inspired by the [vanilla transformer](https://arxiv.org/pdf/1706.03762.pdf) in NLP. This paper utilizes an encoder-decoder architecture to strengthen temporal smoothness. The vanilla self-attention module is replaced by the swin transformer module.
 
-![cross attention](assets/cross_attention.png)
+![cross attention](assets/cross_att.png)
+
+## References
+
+- check out [this](references/References.md) for a comprehensive list of SOTA model in mesh recovery.
