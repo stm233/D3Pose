@@ -21,3 +21,4 @@ Inspired by the [vanilla transformer](https://arxiv.org/pdf/1706.03762.pdf) in N
 ## References
 
 - check out [this](references/References.md) for a comprehensive list of SOTA model in mesh recovery.
+- the code base is partially inspired by [this](https://github.com/aladdinpersson/Machine-Learning-Collection/tree/master/ML/Pytorch/more_advanced/transformer_from_scratch)
