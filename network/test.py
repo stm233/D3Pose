@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 import torch.optim as optim
 import time
 import sys
-from model import EmotionNetwork
+from model.D3Pose import*
 from PIL import Image
 # import pandas as pd
 from torchvision import transforms
@@ -168,64 +168,6 @@ class Resizer(object):
         # annots *= scale
 
         return torch.from_numpy(new_image), scale
-
-
-def load_heatmap_from_loction(heatmap, x, y, z, loction3D, x_step, covariance):
-    # input a heatmap matrix and a key point's loction
-    # x,y,z is the mesh gird
-    # return a new heatmap
-
-    min_x = np.min(x)
-    max_x = np.max(x)
-    min_y = np.min(y)
-    max_y = np.max(y)
-    min_z = np.min(z)
-    max_z = np.max(z)
-
-    x_points = int((max_x - min_x) / x_step) + 1
-    y_points = int((max_y - min_y) / x_step) + 1
-    z_points = int((max_z - min_z) / x_step) + 1
-
-    x_index = (loction3D[0] - min_x) / ((max_x - min_x) / (x_points - 1))
-    y_index = (loction3D[1] - min_y) / ((max_y - min_y) / (y_points - 1))
-    z_index = (loction3D[2] - min_z) / ((max_z - min_z) / (z_points - 1))
-
-    for i in range(0, 1):
-        mean_x = min_x + (round(x_index) + i) * ((max_x - min_x) / (x_points - 1))
-        for j in range(0, 1):
-            mean_y = min_y + (round(y_index) + j) * ((max_y - min_y) / (y_points - 1))
-            for k in range(0, 1):
-                mean_z = min_z + (round(z_index) + k) * ((max_z - min_z) / (z_points - 1))
-                # Define the mean vector and covariance matrix
-                mean = [mean_x, mean_y, mean_z]
-                # covariance = np.array([[x_step*x_step//2, 0, 0],
-                #                        [0, x_step*x_step//2, 0],
-                #                        [0, 0, x_step*x_step//2]])
-                # # Create a grid of x, y, and z values
-                # x, y, z = np.meshgrid(np.linspace(-4, 3, x_step),
-                #                       np.linspace(-3, 3, x_step),
-                #                       np.linspace(-3, 3, x_step))
-
-                xyz = np.column_stack([x.ravel(), y.ravel(), z.ravel()])
-
-                # Calculate the probability density at each point in the grid
-                pdf_values = multivariate_normal(mean, covariance, allow_singular=True).pdf(xyz)
-                if i == 0 and j == 0 and k == 0:
-                    # print(i,j,k,'100')
-                    pdf_values = pdf_values.reshape(heatmap.shape) * 0.001
-                else:
-                    # print(i, j, k)
-                    pdf_values = pdf_values.reshape(heatmap.shape) * 0
-                heatmap = heatmap + pdf_values
-
-    # Find the indices where values are greater than 1
-    indices = np.where(heatmap > 1)
-    # if len(indices[0]) > 0:
-    #     print('find the value larger than 1',indices)
-    # Change the values at those indices to 1
-    heatmap[indices] = 1
-
-    return heatmap
 
 
 class myDataset(Dataset):
@@ -408,7 +350,7 @@ def main(argv):
         # pin_memory=(device == "cuda"),
     )
 
-    net = EmotionNetwork()
+    net = D3Pose()
     net = net.to(device)
 
     last_epoch = 0

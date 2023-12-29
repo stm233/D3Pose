@@ -1,10 +1,7 @@
-# import torch
-# import math
-# import torch.nn.functional as F
-# import numpy as np
-# from timm.models.layers import DropPath, to_2tuple, trunc_normal_
-# import torch.nn as nn
-from layers import *
+from components.encoder_block import *
+from components.decoder_block import *
+from components.util import *
+from components.regressor_head import *
 
 
 class D3Pose(nn.Module):
@@ -48,7 +45,7 @@ class D3Pose(nn.Module):
         # initialize encoder layers
         self.encoder_layers = nn.ModuleList()
         for i_layer in range(self.num_layers):
-            layer = BasicLayer(
+            layer = EncoderBlock(
                 dim=int(embed_dim * 2 ** i_layer),
                 depth=depths[i_layer],
                 num_heads=num_heads[i_layer],
@@ -65,24 +62,28 @@ class D3Pose(nn.Module):
                 inverse=False)
             self.encoder_layers.append(layer)
 
+        # initialize decoder layers
+        self.decoder_layers = nn.ModuleList()
+        for i_layer in range(self.num_layers):
+            layer = DecoderBlock(
+                dim=int(embed_dim * 2 ** i_layer),
+                depth=depths[i_layer],
+                num_heads=num_heads[i_layer],
+                window_size=window_size,
+                mlp_ratio=mlp_ratio,
+                qkv_bias=qkv_bias,
+                qk_scale=qk_scale,
+                drop=drop_rate,
+                attn_drop=attn_drop_rate,
+                drop_path=dpr[sum(depths[:i_layer]):sum(depths[:i_layer + 1])],
+                norm_layer=norm_layer,
+                downsample=PatchMerging if (i_layer < self.num_layers - 1) else None,
+                use_checkpoint=use_checkpoint,
+                inverse=False)
+            self.Decoder_layers.append(layer)
 
-
-        self.cnns = nn.Sequential(
-            conv3x3(embed_dim * 8, embed_dim * 4),
-            nn.GELU(),
-            conv3x3(embed_dim * 4, embed_dim * 2),
-            nn.GELU(),
-            # conv3x3(embed_dim*2, embed_dim, stride=2),
-            conv3x3(embed_dim * 2, embed_dim),
-            nn.GELU(),
-            # conv3x3(embed_dim, embed_dim // 2),
-            # nn.GELU(),
-            # conv3x3(embed_dim//4, self.in_chans),
-            # nn.GELU(),
-            # conv3x3(embed_dim//2, embed_dim//4),
-            # nn.GELU(),
-            conv3x3(embed_dim, self.in_chans),
-        )
+        # initialize regression head
+        self.CNNs = cnns(embed_dim, self.in_chans)
         self.body_regressor_head = nn.Linear(13 * 12, 85)
 
     # why init_weights
@@ -107,26 +108,29 @@ class D3Pose(nn.Module):
         # print(images.shape)
 
         # preprocess encoder input
-        encoder_input = self.patch_embed(images)
-        Wh, Ww = encoder_input.size(2), encoder_input.size(3)
-        encoder_input = encoder_input.flatten(2).transpose(1, 2)
+        encoder_out = self.patch_embed(images)
+        Wh_encoder, Ww_encoder = encoder_out.size(2), encoder_out.size(3)
+
+        encoder_input = encoder_out.flatten(2).transpose(1, 2)
         encoder_input = self.pos_drop(encoder_input)
 
         # preprocess decoder input
-        decoder_out = gt
+        decoder_out = self.patch_embed(gt)
+        Wh_decoder, Ww_decoder = encoder_input.size(2), encoder_input.size(3)
 
         for i in range(self.num_layers):
-            layer = self.encoder_layers[i]
-            encoder_out, Wh, Ww = layer(encoder_input, Wh, Ww)
+            encoder_block = self.encoder_layers[i]
+            encoder_out, Wh_encoder, Ww_encoder = encoder_block(encoder_out, Wh_encoder, Ww_encoder)
 
             # encoder_out as part of decoder's input
-            decoder_out = gt
+            decoder_block = self.decoder_layers[i]
+            decoder_out, Wh_decoder, Ww_decoder = decoder_block(decoder_out, encoder_out, Wh_decoder, Ww_decoder)
 
         # regress body parameters
         # y      : batch x 48*16*8 x size/16 x size/16
         features = decoder_out
         C = self.embed_dim * 8
-        features = features.view(-1, Wh, Ww, C).permute(0, 3, 1, 2).contiguous()
+        features = features.view(-1, Wh_decoder, Ww_decoder, C).permute(0, 3, 1, 2).contiguous()
         # y = y.view(-1, C // 4, Wh*2, Ww*2).contiguous()
 
         # z : batch x 81 x size/32 x size/32
@@ -135,6 +139,5 @@ class D3Pose(nn.Module):
         out = self.body_regressor_head(features)
         # z = z.view(-1, self.in_chans, 15,3)
 
-        # encoder_out =
-
         return out
+
