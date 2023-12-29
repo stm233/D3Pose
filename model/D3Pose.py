@@ -65,6 +65,8 @@ class D3Pose(nn.Module):
                 inverse=False)
             self.encoder_layers.append(layer)
 
+
+
         self.cnns = nn.Sequential(
             conv3x3(embed_dim * 8, embed_dim * 4),
             nn.GELU(),
@@ -116,6 +118,8 @@ class D3Pose(nn.Module):
         for i in range(self.num_layers):
             layer = self.encoder_layers[i]
             encoder_out, Wh, Ww = layer(encoder_input, Wh, Ww)
+
+            # encoder_out as part of decoder's input
             decoder_out = gt
 
         # regress body parameters
