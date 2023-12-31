@@ -11,7 +11,6 @@ def conv3x3(in_ch: int, out_ch: int, stride: int = 1) -> nn.Module:
     """3x3 convolution with padding."""
     return nn.Conv2d(in_ch, out_ch, kernel_size=3, stride=stride, padding=1)
 
-
 def cnns(embed_dim, in_chans):
     # Define the CNN layers
     cnns = nn.Sequential(
