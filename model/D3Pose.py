@@ -1,3 +1,5 @@
+from torch.nn.init import trunc_normal_
+
 from components.encoder_block import *
 from components.decoder_block import *
 from components.util import *
@@ -67,10 +69,7 @@ class D3Pose(nn.Module):
         for i_layer in range(self.num_layers):
             layer = DecoderBlock(
                 dim=int(embed_dim * 2 ** i_layer),
-                depth=depths[i_layer],
                 num_heads=num_heads[i_layer],
-                window_size=window_size,
-                mlp_ratio=mlp_ratio,
                 qkv_bias=qkv_bias,
                 qk_scale=qk_scale,
                 drop=drop_rate,
@@ -83,10 +82,8 @@ class D3Pose(nn.Module):
             self.Decoder_layers.append(layer)
 
         # initialize regression head
-        self.CNNs = cnns(embed_dim, self.in_chans)
-        self.body_regressor_head = nn.Linear(13 * 12, 85)
+        self.regressor_head = regressor_head(embed_dim, in_chans, 13*12, 85)
 
-    # why init_weights
     def init_weights(self):
         for m in self.modules():
             if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d)):
@@ -114,30 +111,22 @@ class D3Pose(nn.Module):
         encoder_input = encoder_out.flatten(2).transpose(1, 2)
         encoder_input = self.pos_drop(encoder_input)
 
-        # preprocess decoder input
-        decoder_out = self.patch_embed(gt)
-        Wh_decoder, Ww_decoder = encoder_input.size(2), encoder_input.size(3)
+        # # preprocess decoder input
+        # decoder_out = self.patch_embed(gt)
+        # Wh_decoder, Ww_decoder = encoder_input.size(2), encoder_input.size(3)
+        decoder_out = gt
 
         for i in range(self.num_layers):
             encoder_block = self.encoder_layers[i]
-            encoder_out, Wh_encoder, Ww_encoder = encoder_block(encoder_out, Wh_encoder, Ww_encoder)
+            encoder_out, Wh_encoder, Ww_encoder = encoder_block(encoder_input, Wh_encoder, Ww_encoder)
+
+            encoder_out = self.regressor_head(encoder_out, Wh_encoder, Ww_encoder)
 
             # encoder_out as part of decoder's input
             decoder_block = self.decoder_layers[i]
-            decoder_out, Wh_decoder, Ww_decoder = decoder_block(decoder_out, encoder_out, Wh_decoder, Ww_decoder)
+            decoder_out = decoder_block(decoder_out, encoder_out)
 
-        # regress body parameters
-        # y      : batch x 48*16*8 x size/16 x size/16
-        features = decoder_out
-        C = self.embed_dim * 8
-        features = features.view(-1, Wh_decoder, Ww_decoder, C).permute(0, 3, 1, 2).contiguous()
-        # y = y.view(-1, C // 4, Wh*2, Ww*2).contiguous()
-
-        # z : batch x 81 x size/32 x size/32
-        features = self.cnns(features)
-        features = features.view(-1, self.in_chans, 13 * 12)
-        out = self.body_regressor_head(features)
-        # z = z.view(-1, self.in_chans, 15,3)
+        out = decoder_out
 
         return out
 
