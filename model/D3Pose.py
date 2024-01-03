@@ -10,7 +10,7 @@ class D3Pose(nn.Module):
     def __init__(self,
                  pretrain_img_size=256,
                  patch_size=2,
-                 in_chans=10,
+                 in_chans=30,
                  embed_dim=48,
                  depths=[2, 2, 6, 2],
                  num_heads=[3, 6, 12, 24],
@@ -69,6 +69,7 @@ class D3Pose(nn.Module):
         for i_layer in range(self.num_layers):
             layer = DecoderBlock(
                 dim=int(embed_dim * 2 ** i_layer),
+                mlp_ratio=mlp_ratio,
                 num_heads=num_heads[i_layer],
                 qkv_bias=qkv_bias,
                 qk_scale=qk_scale,
@@ -82,7 +83,15 @@ class D3Pose(nn.Module):
             self.Decoder_layers.append(layer)
 
         # initialize regression head
-        self.regressor_head = regressor_head(embed_dim, in_chans, 13*12, 85)
+        self.regressor_heads = nn.ModuleList()
+        for i_layer in range(self.num_layers):
+            layer = regressor_head(
+                i = i_layer,
+                embed_dim=embed_dim,
+                in_chans=in_chans,
+                out_features = 82,
+            )
+            self.regressor_heads.append(layer)
 
     def init_weights(self):
         for m in self.modules():
@@ -111,16 +120,15 @@ class D3Pose(nn.Module):
         encoder_input = encoder_out.flatten(2).transpose(1, 2)
         encoder_input = self.pos_drop(encoder_input)
 
-        # # preprocess decoder input
-        # decoder_out = self.patch_embed(gt)
-        # Wh_decoder, Ww_decoder = encoder_input.size(2), encoder_input.size(3)
+        # preprocess decoder input
         decoder_out = gt
 
         for i in range(self.num_layers):
             encoder_block = self.encoder_layers[i]
             encoder_out, Wh_encoder, Ww_encoder = encoder_block(encoder_input, Wh_encoder, Ww_encoder)
 
-            encoder_out = self.regressor_head(encoder_out, Wh_encoder, Ww_encoder)
+            regressor_head = self.regressor_heads[i]
+            encoder_out = regressor_head(encoder_out, Wh_encoder, Ww_encoder)
 
             # encoder_out as part of decoder's input
             decoder_block = self.decoder_layers[i]

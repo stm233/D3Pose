@@ -102,3 +102,4 @@ class PatchMerging(nn.Module):
         x = self.reduction(x)
 
         return x
+

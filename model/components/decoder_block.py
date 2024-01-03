@@ -17,10 +17,10 @@ def calculate_temporal_mask(self, trg):
 
     return trg_mask.to(self.device)
 
-
 class DecoderBlock(nn.Module):
     def __init__(self,
                  dim,
+                 mlp_ratio,
                  num_heads,
                  qkv_bias=True,
                  qk_scale=None,
@@ -41,6 +41,14 @@ class DecoderBlock(nn.Module):
             proj_drop=drop
         )
 
+        self.norm1 = norm_layer(dim)
+        self.norm2 = norm_layer(dim)
+        self.act_layer = nn.GELU
+
+        self.mlp_ratio = mlp_ratio
+        mlp_hidden_dim = int(dim * mlp_ratio)
+        self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=self.act_layer, drop=drop)
+
     def forward(self, x, y):
         """ Forward function.
         Args:
@@ -50,5 +58,13 @@ class DecoderBlock(nn.Module):
         """
         attention_mask = calculate_temporal_mask(self, x)
 
+        shortcut = x
+        x = self.norm1(x)
+
         x = self.cross_att_module(x, y, attention_mask)
+
+        # FFN
+        x = shortcut + self.drop_path(x)
+        x = x + self.drop_path(self.mlp(self.norm2(x)))
+
         return x
