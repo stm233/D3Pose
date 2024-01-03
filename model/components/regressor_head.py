@@ -40,6 +40,8 @@ def CNNs(i, embed_dim, in_chans):
     )
 
     cnns3 = nn.Sequential(
+        conv3x3(embed_dim * 8, embed_dim * 4),
+        nn.GELU(),
         conv3x3(embed_dim * 4, embed_dim * 2),
         nn.GELU(),
         conv3x3(embed_dim * 2, embed_dim),
@@ -48,12 +50,16 @@ def CNNs(i, embed_dim, in_chans):
     )
 
     cnns2 = nn.Sequential(
+        conv3x3(embed_dim * 4, embed_dim * 2),
+        nn.GELU(),
         conv3x3(embed_dim * 2, embed_dim),
         nn.GELU(),
         conv3x3(embed_dim, in_chans),
     )
 
     cnns1 = nn.Sequential(
+        conv3x3(embed_dim * 2, embed_dim),
+        nn.GELU(),
         conv3x3(embed_dim, in_chans),
     )
 
@@ -81,8 +87,9 @@ class regressor_head(nn.Module):
 
     def forward(self, x, H, W):
         features = x
+
         # adaptive channel size
-        C = self.embed_dim * 2 ** self.i
+        C = self.embed_dim * 2 ** (self.i + 1)
         features = features.view(-1, H, W, C).permute(0, 3, 1, 2).contiguous()
 
         features = self.cnns(features)

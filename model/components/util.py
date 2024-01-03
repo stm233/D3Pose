@@ -5,6 +5,7 @@ from timm.models.layers import DropPath, to_2tuple, trunc_normal_
 import torch.nn.functional as F
 from torch import nn
 
+
 class Mlp(nn.Module):
     def __init__(self, in_features, hidden_features=None, out_features=None, act_layer=nn.GELU, drop=0.):
         super().__init__()
@@ -23,11 +24,13 @@ class Mlp(nn.Module):
         x = self.drop(x)
         return x
 
+
 def window_partition(x, window_size):
     B, H, W, C = x.shape
     x = x.view(B, H // window_size, window_size, W // window_size, window_size, C)
     windows = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(-1, window_size, window_size, C)
     return windows
+
 
 def window_reverse(windows, window_size, H, W):
     B = int(windows.shape[0] / (H * W / window_size / window_size))
@@ -35,8 +38,9 @@ def window_reverse(windows, window_size, H, W):
     x = x.permute(0, 1, 3, 2, 4, 5).contiguous().view(B, H, W, -1)
     return x
 
+
 class PatchEmbed(nn.Module):
-    def __init__(self, patch_size=4, in_chans=3, embed_dim=96, norm_layer=None):
+    def __init__(self, patch_size=4, in_chans=30, embed_dim=48, norm_layer=None):
         super().__init__()
         patch_size = to_2tuple(patch_size)
         self.patch_size = patch_size
@@ -67,6 +71,7 @@ class PatchEmbed(nn.Module):
             x = x.transpose(1, 2).view(-1, self.embed_dim, Wh, Ww)
 
         return x
+
 
 class PatchMerging(nn.Module):
     def __init__(self, dim, norm_layer=nn.LayerNorm):
@@ -102,4 +107,3 @@ class PatchMerging(nn.Module):
         x = self.reduction(x)
 
         return x
-
