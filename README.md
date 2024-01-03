@@ -22,3 +22,9 @@ Inspired by the [vanilla transformer](https://arxiv.org/pdf/1706.03762.pdf) in N
 
 - check out [this](references/References.md) for a comprehensive list of SOTA model in mesh recovery.
 - the code base is partially inspired by [this](https://github.com/aladdinpersson/Machine-Learning-Collection/tree/master/ML/Pytorch/more_advanced/transformer_from_scratch)
+
+## To-dos
+
+- train the basic cross-attention model on H36M with NeuralAnnot annotations
+- train the basic cross-attention model on an expanded dataset
+- designed the swin-transformer cross-attention model

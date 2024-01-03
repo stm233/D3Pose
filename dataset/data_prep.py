@@ -24,25 +24,25 @@ def process_images_and_gt(src_img_directory, dest_directory, gt_directory):
             # Iterate over the images in the folder
             images = sorted(os.listdir(folder_path))
             clip_count = 0
-            for i in range(0, len(images), 10):
-                if i + 10 <= len(images):
+            for i in range(0, len(images), 30):
+                if i + 30 <= len(images):
                     clip_folder = f"{folder_name}_clip_{clip_count:02d}"
                     clip_folder_path = os.path.join(dest_directory, folder_name, clip_folder)
                     os.makedirs(clip_folder_path, exist_ok=True)
-                    # Copy the 10 images to the new clip folder
-                    for img in images[i:i+10]:
+                    # Copy the 30 images to the new clip folder
+                    for img in images[i:i+30]:
                         shutil.copy2(os.path.join(folder_path, img), clip_folder_path)
 
                     # Extract and save corresponding GT data
-                    gt_clip_data = [gt_data[action][subaction][str(i + frame)] for frame in range(10)]
+                    gt_clip_data = [gt_data[action][subaction][str(i + frame)] for frame in range(30)]
 
                     processed_data = []
                     for frame_data in gt_clip_data:
-                        # Concatenate 'pose', 'shape', and 'trans' into a single array
-                        frame_array = np.concatenate([frame_data['pose'], frame_data['shape'], frame_data['trans']])
+                        # Concatenate 'pose', 'shape', into a single array
+                        frame_array = np.concatenate([frame_data['pose'], frame_data['shape']])
                         processed_data.append(frame_array)
 
-                    # Stack all frame arrays into a single 10x85 array
+                    # Stack all frame arrays into a single 30x82 array
                     final_array = np.stack(processed_data)
 
                     np_file_name = f'subject{subject}_act{action}_subact{subaction}_clip{clip_count:02d}.npy'
