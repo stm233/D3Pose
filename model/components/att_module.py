@@ -99,7 +99,7 @@ class cross_attention(nn.Module):
         B_, N, C = x.shape
         query = self.q(y).reshape(B_, N, 1, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4).contiguous()
         kv = self.kv(x).reshape(B_, N, 2, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4).contiguous()
-        q, k, v = query[0], kv[0], kv[1]  # make torchscript happy (cannot use tensor as tuple)
+        q, k, v = query[0], kv[0], kv[1]  # make torchscript happy (cannot use tensor as tuple )
 
         q = q * self.scale
         attn = (q @ k.transpose(-2, -1))
