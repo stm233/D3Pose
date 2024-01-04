@@ -10,6 +10,7 @@ from util import *
 import torch
 import numpy as np
 
+
 def calculate_attention_mask(H, W, window_size, shift_size, device):
     # Extend the dimensions to be multiples of window_size
     Hp = int(np.ceil(H / window_size)) * window_size
@@ -41,6 +42,7 @@ def calculate_attention_mask(H, W, window_size, shift_size, device):
                                                                                            float(0.0))
 
     return attention_mask
+
 
 class EncoderBlock(nn.Module):
     def __init__(self,
@@ -98,12 +100,11 @@ class EncoderBlock(nn.Module):
 
         for blk in self.blocks:
             blk.H, blk.W = H, W
-            x_down, = blk(x, attention_mask)
+            x = blk(x, attention_mask)
+
         if self.downsample is not None:
             x_down = self.downsample(x, H, W)
 
-            if isinstance(self.downsample, PatchMerging):
-                Wh, Ww = (H + 1) // 2, (W + 1) // 2
-            return x_down, Wh, Ww
+            return x_down, H, W
         else:
             return x, H, W

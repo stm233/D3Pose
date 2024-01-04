@@ -32,7 +32,7 @@ class swin_encoder_block(nn.Module):
         self.H = None
         self.W = None
 
-    def forward(self, x,  mask_matrix):
+    def forward(self, x, mask_matrix):
         B, L, C = x.shape
         H, W = self.H, self.W
         assert L == H * W, "input feature has wrong size"

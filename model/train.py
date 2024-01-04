@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 import torch.optim as optim
 import time
 import sys
-from model.D3Pose import*
+
 from PIL import Image
 # import pandas as pd
 from torchvision import transforms
@@ -18,6 +18,7 @@ import skimage.io
 import skimage.transform
 import skimage.color
 import skimage
+from D3Pose import D3Pose
 
 
 class AverageMeter:
@@ -165,14 +166,14 @@ class myDataset(Dataset):
                 break
 
         spatial_feature_map = torch.load(spatial_feature_map_path, map_location=lambda storage, loc: storage)
-        spatial_feature_map = spatial_feature_map.view(10,200,192)
+        spatial_feature_map = spatial_feature_map.view(30,200,192)
 
         GT_npy = torch.from_numpy(np.array(np.load(GT_path), dtype='f'))
 
         # GT_npy = GT_npy * 1 / (100 * 1)
         # heatmaps = GT_npy
 
-        return spatial_feature_map, GT_npy
+        return spatial_feature_map, GT_npy, GT_npy
 
     def __len__(self):
         return len(self.clipTensor)
@@ -186,13 +187,14 @@ def train_one_epoch(model, train_dataloader, optimizer, epoch, clip_max_norm):
 
     for i, d in enumerate(train_dataloader):
 
-        Images,GT_npy = d
+        Images, srcGT, GT_npy = d
         Images = Images.to(device)
+        srcGT = srcGT.to(device)
         GT_npy = GT_npy.to(device)
         optimizer.zero_grad()
         sample_num += Images.shape[0]
 
-        out_net = model(Images, Images)
+        out_net = model(Images, srcGT)
         # pred_classes = torch.max(out_net, dim=1)[1]
         # accu_num += torch.eq(pred_classes, label.to(device)).sum()
 

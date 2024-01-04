@@ -27,6 +27,7 @@ def process_images_and_gt(src_img_directory, dest_directory, gt_directory):
             for i in range(0, len(images), 30):
                 if i + 30 <= len(images):
                     clip_folder = f"{folder_name}_clip_{clip_count:02d}"
+                    print(clip_folder)
                     clip_folder_path = os.path.join(dest_directory, folder_name, clip_folder)
                     os.makedirs(clip_folder_path, exist_ok=True)
                     # Copy the 30 images to the new clip folder

@@ -77,7 +77,7 @@ class window_self_attention(nn.Module):
         return x
 
 class cross_attention(nn.Module):
-    def __init__(self, dim,  num_heads, qkv_bias=True, qk_scale=None, attn_drop=0., proj_drop=0.):
+    def __init__(self, dim, num_heads, qkv_bias=True, qk_scale=None, attn_drop=0., proj_drop=0.):
 
         super().__init__()
         self.dim = dim
@@ -91,11 +91,11 @@ class cross_attention(nn.Module):
         self.proj = nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(proj_drop)
 
-        trunc_normal_(self.relative_position_bias_table, std=.02)
         self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x, y, mask=None):
 
+        # reshape for multi-head?
         B_, N, C = x.shape
         query = self.q(y).reshape(B_, N, 1, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4).contiguous()
         kv = self.kv(x).reshape(B_, N, 2, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4).contiguous()
@@ -104,6 +104,9 @@ class cross_attention(nn.Module):
         q = q * self.scale
         attn = (q @ k.transpose(-2, -1))
 
+        if mask is not None:
+            attn = attn + mask
+
         attn = self.softmax(attn)
 
         attn = self.attn_drop(attn)
@@ -111,4 +114,5 @@ class cross_attention(nn.Module):
         x = (attn @ v).transpose(1, 2).reshape(B_, N, C)
         x = self.proj(x)
         x = self.proj_drop(x)
+
         return x

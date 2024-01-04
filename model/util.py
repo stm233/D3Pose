@@ -40,7 +40,7 @@ def window_reverse(windows, window_size, H, W):
 
 
 class PatchEmbed(nn.Module):
-    def __init__(self, patch_size=4, in_chans=30, embed_dim=48, norm_layer=None):
+    def __init__(self, patch_size=2, in_chans=30, embed_dim=48, norm_layer=None):
         super().__init__()
         patch_size = to_2tuple(patch_size)
         self.patch_size = patch_size
