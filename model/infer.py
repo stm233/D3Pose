@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 import torch.optim as optim
 import time
 import sys
-
+from model.D3Pose import*
 from PIL import Image
 # import pandas as pd
 from torchvision import transforms
@@ -18,7 +18,55 @@ import skimage.io
 import skimage.transform
 import skimage.color
 import skimage
-from D3Pose import D3Pose
+
+
+def mpjpe_cal(predicted, target):
+    assert predicted.shape == target.shape
+    return torch.mean(torch.norm(predicted - target, dim=len(target.shape) - 1))
+
+
+def p_mpjpe(predicteds, targets):
+    assert predicteds.shape == targets.shape
+
+    targets = targets.cpu().numpy()
+    predicteds = predicteds.cpu().numpy()
+    output = 0
+    for i in range(targets.shape[0]):
+        target = targets[i]
+        predicted = predicteds[i]
+        muX = np.mean(target, axis=1, keepdims=True)
+        muY = np.mean(predicted, axis=1, keepdims=True)
+
+        X0 = target - muX
+        Y0 = predicted - muY
+
+        normX = np.sqrt(np.sum(X0 ** 2, axis=(1, 2), keepdims=True))
+        normY = np.sqrt(np.sum(Y0 ** 2, axis=(1, 2), keepdims=True))
+
+        X0 /= normX
+        Y0 /= normY
+
+        H = np.matmul(X0.transpose(0, 2, 1), Y0)
+        U, s, Vt = np.linalg.svd(H)
+        V = Vt.transpose(0, 2, 1)
+        R = np.matmul(V, U.transpose(0, 2, 1))
+
+        sign_detR = np.sign(np.expand_dims(np.linalg.det(R), axis=1))
+        V[:, :, -1] *= sign_detR
+        s[:, -1] *= sign_detR.flatten()
+        R = np.matmul(V, U.transpose(0, 2, 1))
+
+        tr = np.expand_dims(np.sum(s, axis=1, keepdims=True), axis=2)
+
+        a = tr * normX / normY
+        t = muX - a * np.matmul(muY, R)
+
+        predicted_aligned = a * np.matmul(predicted, R) + t
+        result = np.mean(np.linalg.norm(predicted_aligned - target, axis=len(target.shape) - 1),
+                         axis=len(target.shape) - 2)
+        output = output + result
+    output = output / targets.shape[0]
+    return np.mean(output)
 
 
 class AverageMeter:
@@ -58,37 +106,16 @@ def configure_optimizers(net, args):
 def parse_args(argv):
     parser = argparse.ArgumentParser(description="Example training script.")
 
-    # parser.add_argument(
-    #     "-cd", "--contextDataset", type=str,
-    #     default='D:/Tianma/dataset/Pre_process/train_tensor/',
-    #     help="Training dataset"
-    # )
-
     parser.add_argument(
-        "-td", "--testing_Data", type=str, default='/media/hongji/4T/Downloads/3DPW/preprocess_dataset/validation',
-        help="testing dataset"
+        "-td", "--testing_Data", type=str, default='/media/hongji/4T/Downloads/3DPW/preprocess_dataset/test', help="testing dataset"
     )
     # /media/imaginarium/2T   '/media/imaginarium/12T_2/train/
-    parser.add_argument(
-        "-d", "--Training_Data", type=str, default='/media/hongji/4T/Downloads/3DPW/preprocess_dataset/train',
-        help="Training dataset"
-    )
-    parser.add_argument("-e", "--epochs", default=1000000, type=int, help="Number of epochs (default: %(default)s)", )
-    parser.add_argument(
-        "-lr", "--learning-rate", default=1e-4, type=float, help="Learning rate (default: %(default)s)",
-    )
+
     parser.add_argument(
         "-n", "--num-workers", type=int, default=8, help="Dataloaders threads (default: %(default)s)",
     )
     parser.add_argument(
-        "--patch-size", type=int, nargs=2, default=(256, 256),
-        help="Size of the patches to be cropped (default: %(default)s)",
-    )
-    parser.add_argument(
-        "--batch-size", type=int, default=84, help="Batch size (default: %(default)s)"
-    )
-    parser.add_argument(
-        "--test-batch-size", type=int, default=100, help="Test batch size (default: %(default)s)",
+        "--batch-size", type=int, default=110, help="Test batch size (default: %(default)s)",
     )
     parser.add_argument("--cuda", default=True, action="store_true", help="Use cuda")
     parser.add_argument(
@@ -101,7 +128,7 @@ def parse_args(argv):
                         help="gradient clipping max norm (default: %(default)s")
 
     parser.add_argument("--checkpoint",
-                        default="",  # ./train0008/18.ckpt
+                        default="./save/20.ckpt",  # ./train0008/18.ckpt
                         type=str, help="Path to a checkpoint")
 
     args = parser.parse_args(argv)
@@ -163,8 +190,8 @@ class myDataset(Dataset):
 
     def __getitem__(self, index):
         spatial_feature_map_path = self.clipTensor[index]
-        # GT_name = spatial_feature_map_path.split('/')[-2] + '.npy'
-        # clip_path = spatial_feature_map_path[:-14]
+        #GT_name = spatial_feature_map_path.split('/')[-2] + '.npy'
+        #clip_path = spatial_feature_map_path[:-14]
 
         clip_dir = os.path.dirname(spatial_feature_map_path)
         GT_path = None
@@ -175,88 +202,55 @@ class myDataset(Dataset):
                 break
 
         spatial_feature_map = torch.load(spatial_feature_map_path, map_location=lambda storage, loc: storage)
-        spatial_feature_map = spatial_feature_map.view(30, 200, 192)
+        spatial_feature_map = spatial_feature_map.view(30,200,192)
 
         GT_npy = torch.from_numpy(np.array(np.load(GT_path), dtype='f'))
 
         # GT_npy = GT_npy * 1 / (100 * 1)
         # heatmaps = GT_npy
 
-        return spatial_feature_map, GT_npy, GT_npy
+        return spatial_feature_map, GT_npy
 
     def __len__(self):
         return len(self.clipTensor)
 
 
-def train_one_epoch(model, train_dataloader, optimizer, epoch, clip_max_norm):
-    model.train()
-    device = next(model.parameters()).device
-    start = time.time()
-    # accu_num = torch.zeros(1).to(device)
-    sample_num = 0
-
-    for i, d in enumerate(train_dataloader):
-
-        Images, srcGT, GT_npy = d
-        Images = Images.to(device)
-        srcGT = srcGT.to(device)
-        GT_npy = GT_npy.to(device)
-        optimizer.zero_grad()
-        sample_num += Images.shape[0]
-
-        out_net = model(Images, srcGT)
-        # pred_classes = torch.max(out_net, dim=1)[1]
-        # accu_num += torch.eq(pred_classes, label.to(device)).sum()
-
-        loss_function = torch.nn.MSELoss(reduction='mean')
-        # print(out_net.shape,GT_npy.shape)
-        out_criterion = loss_function(out_net, GT_npy)
-        out_criterion.backward()
-
-        if clip_max_norm > 0:
-            torch.nn.utils.clip_grad_norm_(model.parameters(), clip_max_norm)
-        optimizer.step()
-
-        if i % 200 == 0:
-            enc_time = time.time() - start
-            start = time.time()
-            print(
-                f"Train epoch {epoch}: ["
-                f"{i * len(Images)}/{len(train_dataloader.dataset)}"
-                f" ({100. * i / len(train_dataloader):.0f}%)]"
-                f'\tLoss: {out_criterion.item():.4f} |'
-                # f'\tacc: {accu_num.item() / sample_num:.4f} |'
-                f"\ttime: {enc_time:.1f}"
-            )
-
-
-def validate_epoch(epoch, test_dataloader, model):
+def test_epoch(epoch, test_dataloader, model):
     model.eval()
     device = next(model.parameters()).device
 
-    loss = AverageMeter()
+    MSE = AverageMeter()
+    MPJPE = AverageMeter()
+    P_MPJPE = AverageMeter()
     loss_function = torch.nn.MSELoss(reduction='mean')
-    # accu_num = torch.zeros(1).to(device)  # 累计预测正确的样本数
     sample_num = 0
 
     with torch.no_grad():
         for d in test_dataloader:
-            Images, GT, GT_npy = d
-            sample_num += Images.shape[0]
-            out_net = model(Images.to(device), GT.to(device))
-            # pred_classes = torch.max(out_net, dim=1)[1]
-            # accu_num += torch.eq(pred_classes, label.to(device)).sum()
+            images, GT = d
+            images = images.to(device)
+            # sample_num += Images.shape[0]
+            # out_net = model(Images.to(device))
 
-            out_criterion = loss_function(out_net, GT_npy.to(device))
+            start_token = torch.zeros([30, 82], dtype=torch.float).to(device)
+            input_seq = start_token
 
-            loss.update(out_criterion)
+            for frame in range(30):
+                out_net = model(images, input_seq)
+                input_seq[frame] = out_net[frame]
+
+            out = out_net
+            out_criterion = loss_function(out, GT.to(device))
+            MSE.update(out_criterion)
 
     print(
         f"Test epoch {epoch}: Average losses:"
-        f"\tLoss: {loss.avg:.3f} |"
-        # f'\tacc: {accu_num.item() / sample_num:.4f} |'
-    )
-    return loss.avg
+        f"\tMSE: {MSE.avg:.3f} |"
+        f"\tMPJPE: {MPJPE.avg:.3f} |"
+        f"\tP_MPJPE: {P_MPJPE.avg:.3f} |"
+        )
+
+    return MSE.avg
 
 
 def main(argv):
@@ -267,21 +261,9 @@ def main(argv):
         random.seed(args.seed)
 
     train_transforms = transforms.Compose([Resizer()])
-
-    # test_transforms = transforms.Compose([Resizer()])
-
-    train_dataset = myDataset(args.Training_Data, train_transforms)
     test_dataset = myDataset(args.testing_Data, train_transforms)
 
     device = "cuda" if args.cuda and torch.cuda.is_available() else "cpu"
-
-    train_dataloader = DataLoader(
-        train_dataset,
-        batch_size=args.batch_size,
-        num_workers=args.num_workers,
-        shuffle=True,
-        pin_memory=(device == "cuda"),
-    )
 
     test_dataloader = DataLoader(
         test_dataset,
@@ -294,63 +276,16 @@ def main(argv):
     net = D3Pose()
     net = net.to(device)
 
-    # print('GPU:',torch.cuda.device_count())
-    #
-    # if args.cuda and torch.cuda.device_count() > 1:
-    #     net = CustomDataParallel(net)
-
-    optimizer = configure_optimizers(net, args)
-    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min", factor=0.3, patience=4)
-    # criterion = RateDistortionLoss(lmbda=args.lmbda)
-
     last_epoch = 0
     if args.checkpoint:  # load from previous checkpoint
         print("Loading", args.checkpoint)
         checkpoint = torch.load(args.checkpoint, map_location=device)
         last_epoch = checkpoint["epoch"] + 1
         new_state_dict = checkpoint["state_dict"]
-        # new_state_dict = OrderedDict()
-
-        # for k, v in checkpoint["state_dict"].items():
-        #     # if 'gaussian_conditional' in k:
-        #     #     new_state_dict[k]=v
-        #     #     print(k)
-        #     #     continue
-        #     # if 'module' not in k:
-        #     k = k[7:]
-        #     # else:
-        #     #     k = k.replace('features.module.', 'module.features.')
-        #     new_state_dict[k]=v
 
         net.load_state_dict(new_state_dict)
 
-        optimizer.load_state_dict(checkpoint["optimizer"])
-        # aux_optimizer.load_state_dict(checkpoint["aux_optimizer"])
-        lr_scheduler.load_state_dict(checkpoint["lr_scheduler"])
-
-    best_loss = float("inf")
-    for epoch in range(last_epoch, args.epochs):
-        print(f"Learning rate: {optimizer.param_groups[0]['lr']}")
-        train_one_epoch(net, train_dataloader, optimizer,
-                        epoch,
-                        args.clip_max_norm,
-                        )
-        loss = validate_epoch(epoch, test_dataloader, net)
-        lr_scheduler.step(loss)
-
-        is_best = loss < best_loss
-        best_loss = min(loss, best_loss)
-
-        if is_best and epoch % 1 == 0:
-            torch.save(
-                {
-                    "epoch": epoch,
-                    "state_dict": net.state_dict(),
-                    "optimizer": optimizer.state_dict(),
-                    "lr_scheduler": lr_scheduler.state_dict(),
-                },
-                args.save_path + str(epoch) + '.ckpt'
-            )
+    loss = test_epoch(0, test_dataloader, net)
 
 
 # Press the green button in the gutter to run the script.

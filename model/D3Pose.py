@@ -1,10 +1,10 @@
 from torch.nn.init import trunc_normal_
 
 
-from model.encoder_block import *
-from model.decoder_block import *
-from model.util import *
-from model.regressor_head import *
+from encoder_block import *
+from decoder_block import *
+from util import *
+from regressor_head import *
 
 class D3Pose(nn.Module):
     def __init__(self,
