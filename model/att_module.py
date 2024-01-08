@@ -105,14 +105,19 @@ class cross_attention(nn.Module):
         attn = (q @ k.transpose(-2, -1))
 
         if mask is not None:
+            # attn = torch.mul(attn, mask)
             attn = attn + mask
 
-        attn = self.softmax(attn)
+        attn1 = self.softmax(attn)
 
-        attn = self.attn_drop(attn)
+        attn = self.attn_drop(attn1)
 
         x = (attn @ v).transpose(1, 2).reshape(B_, N, C)
-        x = self.proj(x)
+        # x = self.proj(x)
         x = self.proj_drop(x)
 
         return x
+
+
+
+

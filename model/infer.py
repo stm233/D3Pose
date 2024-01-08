@@ -107,7 +107,7 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(description="Example training script.")
 
     parser.add_argument(
-        "-td", "--testing_Data", type=str, default='/media/hongji/4T/Downloads/3DPW/preprocess_dataset/test', help="testing dataset"
+        "-td", "--testing_Data", type=str, default='/media/hongji/4T/Downloads/3DPW/preprocess_dataset/validation', help="testing dataset"
     )
     # /media/imaginarium/2T   '/media/imaginarium/12T_2/train/
 
@@ -115,7 +115,7 @@ def parse_args(argv):
         "-n", "--num-workers", type=int, default=8, help="Dataloaders threads (default: %(default)s)",
     )
     parser.add_argument(
-        "--batch-size", type=int, default=110, help="Test batch size (default: %(default)s)",
+        "--batch-size", type=int, default=1, help="Test batch size (default: %(default)s)",
     )
     parser.add_argument("--cuda", default=True, action="store_true", help="Use cuda")
     parser.add_argument(
@@ -232,23 +232,26 @@ def test_epoch(epoch, test_dataloader, model):
             # sample_num += Images.shape[0]
             # out_net = model(Images.to(device))
 
-            start_token = torch.zeros([30, 82], dtype=torch.float).to(device)
+            start_token = torch.zeros(GT.shape, dtype=torch.float).to(device)
             input_seq = start_token
+            input_seq[:, 0] = GT[:, 0]
 
             for frame in range(30):
-                out_net = model(images, input_seq)
-                input_seq[frame] = out_net[frame]
+                out_net = model(images, input_seq) # GT.to(device)
+                out_net2 = model(images, GT.to(device))
+
+                input_seq[:,frame] = GT[:,frame]
 
             out = out_net
             out_criterion = loss_function(out, GT.to(device))
             MSE.update(out_criterion)
 
-    print(
-        f"Test epoch {epoch}: Average losses:"
-        f"\tMSE: {MSE.avg:.3f} |"
-        f"\tMPJPE: {MPJPE.avg:.3f} |"
-        f"\tP_MPJPE: {P_MPJPE.avg:.3f} |"
-        )
+            print(
+                f"Test epoch {epoch}: Average losses:"
+                f"\tMSE: {MSE.avg:.5f} |"
+                f"\tMPJPE: {MPJPE.avg:.3f} |"
+                f"\tP_MPJPE: {P_MPJPE.avg:.3f} |"
+                )
 
     return MSE.avg
 

@@ -10,6 +10,8 @@ from util import *
 
 def calculate_temporal_mask(N, device='cuda'):
     mask = torch.triu(torch.ones(N, N) * float('-inf'), diagonal=1)
+    # mask = torch.triu(torch.ones(N, N), diagonal=0)
+    # inverted_mask = 1 - mask
     mask = mask.to(device)
 
     return mask
@@ -65,21 +67,21 @@ class DecoderBlock(nn.Module):
         temporal_attention_mask = calculate_temporal_mask(30)
 
         shortcut1 = x
-        x = self.norm1(x)
+        # x = self.norm1(x)
 
         x = self.cross_att_module(x, x, temporal_attention_mask)
 
         #FFN
-        x = shortcut1 + x
-        x = x + self.mlp1(self.norm2(x))
+        # x = shortcut1 + x
+        # x = x + self.mlp1(self.norm2(x))
 
-        shortcut2 = x
-        x = self.norm3(x)
+        # shortcut2 = x
+        # x = self.norm3(x)
 
-        x = self.cross_att_module(x, y)
+        # x = self.cross_att_module(y, x)
 
         # FFN
-        x = shortcut2 + x
-        x = x + self.mlp2(self.norm4(x))
+        # x = shortcut2 + x
+        # x = x + self.mlp2(self.norm4(x))
 
         return x

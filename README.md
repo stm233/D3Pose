@@ -8,6 +8,13 @@ install the following dependencies
 
 ```bash
 CLIP
+python 3.8
+pip install torch
+pip install numpy
+pip install torchvision
+pip install scikit-image
+pip install timm
+
 
 ```
 
