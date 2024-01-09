@@ -50,8 +50,8 @@ def process(images_path, gt_path, output_path):
                     print("saving clip", clip_folder)
                     clip_folder_path = os.path.join(output_vid_folder, clip_folder)
                     os.makedirs(clip_folder_path, exist_ok=True)
-                    for img in images[i:i + 30]:
-                        shutil.copy2(os.path.join(img_folder_path, img), clip_folder_path)
+                    # for img in images[i:i + 30]:
+                    #     shutil.copy2(os.path.join(img_folder_path, img), clip_folder_path)
 
                     # adding a row of zeros at the beginning
                     clip_gt = smpl_params[i:i + 30]
@@ -62,14 +62,14 @@ def process(images_path, gt_path, output_path):
                     clip_gt_extended_np = clip_gt_extended.numpy()
 
                     np_file_name = f'clip{clip_count:02d}.npy'
-                    np.save(os.path.join(clip_folder_path, np_file_name), clip_gt_extended)
+                    np.save(os.path.join(clip_folder_path, np_file_name), clip_gt_extended_np)
 
                     clip_count += 1
 
 
 if __name__ == '__main__':
-    images_path = '/media/hongji/Expansion/3DPW/images'
-    gt_path = '/media/hongji/Expansion/3DPW/gt'
+    images_path = '/home/hongji/Documents/3DPW/images'
+    gt_path = '/home/hongji/Documents/3DPW/gt'
     output_path = '/media/hongji/Expansion/3DPW/processed_data'
 
     process(images_path, gt_path, output_path)

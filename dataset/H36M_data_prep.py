@@ -1,10 +1,13 @@
 import os
+
+import torch
 from PIL import Image
 import json
 import shutil
 import numpy as np
 
-def process_images_and_gt(src_img_directory, dest_directory, gt_directory):
+
+def process_images_and_gt(src_img_directory, dest_directory, gt_directory, camera):
     for folder_name in os.listdir(src_img_directory):
         # Extract subject, action, subaction from folder name
         parts = folder_name.split('_')
@@ -14,7 +17,7 @@ def process_images_and_gt(src_img_directory, dest_directory, gt_directory):
         subaction = str(int(subaction))  # Same for subaction index
 
         # Check if the folder is for the first camera angle
-        if 'ca_01' in folder_name:
+        if camera in folder_name:
             folder_path = os.path.join(src_img_directory, folder_name)
             # Load the corresponding GT data
             gt_file = f'Human36M_subject{subject}_SMPL_NeuralAnnot.json'
@@ -24,7 +27,7 @@ def process_images_and_gt(src_img_directory, dest_directory, gt_directory):
             # Iterate over the images in the folder
             images = sorted(os.listdir(folder_path))
             clip_count = 0
-            for i in range(0, len(images), 30):
+            for i in range(0, len(images), 1):
                 if i + 30 <= len(images):
                     clip_folder = f"{folder_name}_clip_{clip_count:02d}"
                     print(clip_folder)
@@ -45,28 +48,26 @@ def process_images_and_gt(src_img_directory, dest_directory, gt_directory):
 
                     # Stack all frame arrays into a single 30x82 array
                     final_array = np.stack(processed_data)
+                    clip_gt = torch.from_numpy(final_array)
+
+                    # adding a row of zeros at the beginning
+                    zeros = torch.zeros(1, 82)
+                    clip_gt_extended = torch.cat((zeros, clip_gt), dim=0)
+                    clip_gt_extended = clip_gt_extended.cpu()
+                    clip_gt_extended_np = clip_gt_extended.numpy()
 
                     np_file_name = f'subject{subject}_act{action}_subact{subaction}_clip{clip_count:02d}.npy'
-                    np.save(os.path.join(clip_folder_path, np_file_name), final_array)
+                    np.save(os.path.join(clip_folder_path, np_file_name), clip_gt_extended_np)
 
                     clip_count += 1
 
 
 if __name__ == '__main__':
-    json_path = '/media/hongji/4T/Downloads/H36M/annotations_smpl/Human36M_subject1_SMPL_NeuralAnnot.json'
-    # '/media/hongji/4T/Downloads/H36M_annot_smpl/Human36M_subject1_SMPLX_NeuralAnnot.json'
-    with open(json_path, 'r') as file:
-        data = json.load(file)
-        print(data.keys())
-        sub_dict = data['2']  # Access the dictionary under key '2'
-        sub_dict_keys = sub_dict.keys()  # Get the keys of this sub-dictionary
-        print(sub_dict_keys)  # Print the keys
-        # Accessing the value associated with key '1' under the main key '2'
-        value_under_key_1 = data['2']['1']['1']
 
-        print("Value under key '2'->'1':", value_under_key_1)
+    src_directory = '/home/hongji/Documents/Human3.6M/images'
+    dest_directory = '/home/hongji/Documents/Human3.6M/processed_data'
+    gt_directory = '/home/hongji/Documents/Human3.6M/annotations_smpl'
 
-    src_directory = '/media/hongji/4T/Downloads/H36M/images/images'
-    dest_directory = '/media/hongji/4T/Downloads/H36M/output_feat'
-    gt_directory = '/media/hongji/4T/Downloads/H36M/annotations_smpl'
-    process_images_and_gt(src_directory, dest_directory, gt_directory)
+    cameras = ['ca_01', 'ca_02', 'ca_03', 'ca_04']
+    for cam in cameras:
+        process_images_and_gt(src_directory, dest_directory, gt_directory, cam)

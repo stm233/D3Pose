@@ -205,7 +205,9 @@ def train_one_epoch(model, train_dataloader, optimizer, epoch, clip_max_norm):
         sample_num += Images.shape[0]
 
         out_net = model(Images, srcGT)
-        out_net_clean = out_net[:, 1:, :]
+
+        # compare 1 - 31 rows in GT with 0 - 30 in output
+        out_net_clean = out_net[:, :30, :]
         GT_clean = GT_npy[:, 1:, :]
 
         loss_function = torch.nn.MSELoss(reduction='mean')
@@ -243,7 +245,7 @@ def validate_epoch(epoch, test_dataloader, model):
             Images, GT, GT_npy = d
             sample_num += Images.shape[0]
             out_net = model(Images.to(device), GT.to(device))
-            out_net_clean = out_net[:, 1:, :]
+            out_net_clean = out_net[:, :30, :]
             GT_clean = GT_npy[:, 1:, :]
 
             out_criterion = loss_function(out_net_clean, GT_clean.to(device))

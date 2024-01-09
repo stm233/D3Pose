@@ -107,7 +107,8 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(description="Example training script.")
 
     parser.add_argument(
-        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/processed_data/validation', help="testing dataset"
+        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/processed_data/validation',
+        help="testing dataset"
     )
     # /media/imaginarium/2T   '/media/imaginarium/12T_2/train/
 
@@ -235,7 +236,7 @@ def test_epoch(epoch, test_dataloader, model):
             start_token = torch.zeros(GT.shape, dtype=torch.float).to(device)
             input_seq = start_token
 
-            #input_seq = GT.to(device)
+            # input_seq = GT.to(device)
 
             for frame in range(30):
                 out_net = model(images, input_seq)  # GT.to(device)
@@ -249,10 +250,9 @@ def test_epoch(epoch, test_dataloader, model):
 
             same = out == out2
 
-            out_net_clean = out[:, 1:, :]
+            # out_net_clean = out[:, 1:, :]
+            out_net_clean = out_net[:, :30, :]
             GT_clean = GT[:, 1:, :]
-
-
 
             out_criterion = loss_function(out_net_clean, GT_clean.to(device))
             MSE.update(out_criterion)
