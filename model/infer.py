@@ -107,7 +107,7 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(description="Example training script.")
 
     parser.add_argument(
-        "-td", "--testing_Data", type=str, default='/media/hongji/4T/Downloads/3DPW/preprocess_dataset/validation', help="testing dataset"
+        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/processed_data/test', help="testing dataset"
     )
     # /media/imaginarium/2T   '/media/imaginarium/12T_2/train/
 
@@ -115,7 +115,7 @@ def parse_args(argv):
         "-n", "--num-workers", type=int, default=8, help="Dataloaders threads (default: %(default)s)",
     )
     parser.add_argument(
-        "--batch-size", type=int, default=1, help="Test batch size (default: %(default)s)",
+        "--batch-size", type=int, default=100, help="Test batch size (default: %(default)s)",
     )
     parser.add_argument("--cuda", default=True, action="store_true", help="Use cuda")
     parser.add_argument(
@@ -128,7 +128,7 @@ def parse_args(argv):
                         help="gradient clipping max norm (default: %(default)s")
 
     parser.add_argument("--checkpoint",
-                        default="./save/20.ckpt",  # ./train0008/18.ckpt
+                        default="/home/hongji/Documents/save4.ckpt",  # ./train0008/18.ckpt
                         type=str, help="Path to a checkpoint")
 
     args = parser.parse_args(argv)
@@ -240,11 +240,11 @@ def test_epoch(epoch, test_dataloader, model):
                 out_net = model(images, input_seq) # GT.to(device)
                 # out_net2 = model(images, GT.to(device))
 
-                input_seq[:,frame + 1] = GT[:,frame + 1]
+                input_seq[:,frame + 1] = out_net[:,frame + 1]
 
             out = out_net
-            out_net_clean = out[1:, :]
-            GT_clean = GT[1:, :]
+            out_net_clean = out[:, 1:, :]
+            GT_clean = GT[:, 1:, :]
 
             out_criterion = loss_function(out_net_clean, GT_clean.to(device))
             MSE.update(out_criterion)
