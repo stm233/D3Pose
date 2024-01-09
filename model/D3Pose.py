@@ -1,10 +1,9 @@
 from torch.nn.init import trunc_normal_
-
-
 from encoder_block import *
 from decoder_block import *
 from util import *
 from regressor_head import *
+
 
 class D3Pose(nn.Module):
     def __init__(self,
@@ -86,7 +85,7 @@ class D3Pose(nn.Module):
         self.regressor_heads = nn.ModuleList()
         for i_layer in range(self.num_layers):
             layer = regressor_head(
-                i = i_layer,
+                i=i_layer,
                 embed_dim=embed_dim,
                 in_chans=31,
                 out_features=82,
@@ -145,4 +144,3 @@ class D3Pose(nn.Module):
         out = decoder_out
 
         return out
-

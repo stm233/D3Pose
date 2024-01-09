@@ -37,3 +37,10 @@ Inspired by the [vanilla transformer](https://arxiv.org/pdf/1706.03762.pdf) in N
 - train the basic cross-attention model on H36M with NeuralAnnot annotations
 - train the basic cross-attention model on an expanded dataset
 - designed the swin-transformer cross-attention model
+
+## result log
+- training on 3DPW
+- during training, test epoch loss: 0.022, training epoch: 0.0036
+- testing on test dataset with complete GT as input: 0.1377
+- testing on test dataset with GT in loop as input: 0.14409
+- testing on validation dataset with complete GT as input: 0.02028

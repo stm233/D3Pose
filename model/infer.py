@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 import torch.optim as optim
 import time
 import sys
-from model.D3Pose import*
+from model.D3Pose import *
 from PIL import Image
 # import pandas as pd
 from torchvision import transforms
@@ -107,7 +107,7 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(description="Example training script.")
 
     parser.add_argument(
-        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/processed_data/test', help="testing dataset"
+        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/processed_data/validation', help="testing dataset"
     )
     # /media/imaginarium/2T   '/media/imaginarium/12T_2/train/
 
@@ -190,8 +190,8 @@ class myDataset(Dataset):
 
     def __getitem__(self, index):
         spatial_feature_map_path = self.clipTensor[index]
-        #GT_name = spatial_feature_map_path.split('/')[-2] + '.npy'
-        #clip_path = spatial_feature_map_path[:-14]
+        # GT_name = spatial_feature_map_path.split('/')[-2] + '.npy'
+        # clip_path = spatial_feature_map_path[:-14]
 
         clip_dir = os.path.dirname(spatial_feature_map_path)
         GT_path = None
@@ -202,7 +202,7 @@ class myDataset(Dataset):
                 break
 
         spatial_feature_map = torch.load(spatial_feature_map_path, map_location=lambda storage, loc: storage)
-        spatial_feature_map = spatial_feature_map.view(30,200,192)
+        spatial_feature_map = spatial_feature_map.view(30, 200, 192)
 
         GT_npy = torch.from_numpy(np.array(np.load(GT_path), dtype='f'))
 
@@ -234,17 +234,25 @@ def test_epoch(epoch, test_dataloader, model):
 
             start_token = torch.zeros(GT.shape, dtype=torch.float).to(device)
             input_seq = start_token
-            input_seq[:, 0] = GT[:, 0]
+
+            #input_seq = GT.to(device)
 
             for frame in range(30):
-                out_net = model(images, input_seq) # GT.to(device)
-                # out_net2 = model(images, GT.to(device))
+                out_net = model(images, input_seq)  # GT.to(device)
+                out_net2 = model(images, GT.to(device))
 
-                input_seq[:,frame + 1] = out_net[:,frame + 1]
+                input_seq[:, frame + 1] = GT[:, frame + 1]
+                # input_seq[:, frame + 1] = out_net[:, frame + 1]
 
             out = out_net
+            out2 = out_net2
+
+            same = out == out2
+
             out_net_clean = out[:, 1:, :]
             GT_clean = GT[:, 1:, :]
+
+
 
             out_criterion = loss_function(out_net_clean, GT_clean.to(device))
             MSE.update(out_criterion)
@@ -254,7 +262,7 @@ def test_epoch(epoch, test_dataloader, model):
                 f"\tMSE: {MSE.avg:.5f} |"
                 f"\tMPJPE: {MPJPE.avg:.3f} |"
                 f"\tP_MPJPE: {P_MPJPE.avg:.3f} |"
-                )
+            )
 
     return MSE.avg
 
