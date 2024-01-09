@@ -65,12 +65,12 @@ def parse_args(argv):
     # )
 
     parser.add_argument(
-        "-td", "--testing_Data", type=str, default='/media/hongji/4T/Downloads/3DPW/preprocess_dataset/validation',
+        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/processed_data/validation',
         help="testing dataset"
     )
-    # /media/imaginarium/2T   '/media/imaginarium/12T_2/train/
+
     parser.add_argument(
-        "-d", "--Training_Data", type=str, default='/media/hongji/4T/Downloads/3DPW/preprocess_dataset/train',
+        "-d", "--Training_Data", type=str, default='/home/hongji/Documents/processed_data/train',
         help="Training dataset"
     )
     parser.add_argument("-e", "--epochs", default=1000000, type=int, help="Number of epochs (default: %(default)s)", )
@@ -85,14 +85,14 @@ def parse_args(argv):
         help="Size of the patches to be cropped (default: %(default)s)",
     )
     parser.add_argument(
-        "--batch-size", type=int, default=84, help="Batch size (default: %(default)s)"
+        "--batch-size", type=int, default=80, help="Batch size (default: %(default)s)"
     )
     parser.add_argument(
-        "--test-batch-size", type=int, default=100, help="Test batch size (default: %(default)s)",
+        "--test-batch-size", type=int, default=96, help="Test batch size (default: %(default)s)",
     )
     parser.add_argument("--cuda", default=True, action="store_true", help="Use cuda")
     parser.add_argument(
-        "--save_path", type=str, default="./save/", help="Where to Save model"
+        "--save_path", type=str, default="/home/hongji/Documents/save", help="Where to Save model"
     )
     parser.add_argument(
         "--seed", type=float, help="Set random seed for reproducibility"
@@ -205,12 +205,11 @@ def train_one_epoch(model, train_dataloader, optimizer, epoch, clip_max_norm):
         sample_num += Images.shape[0]
 
         out_net = model(Images, srcGT)
-        # pred_classes = torch.max(out_net, dim=1)[1]
-        # accu_num += torch.eq(pred_classes, label.to(device)).sum()
+        out_net_clean = out_net[1:, :]
+        GT_clean = GT_npy[1:, :]
 
         loss_function = torch.nn.MSELoss(reduction='mean')
-        # print(out_net.shape,GT_npy.shape)
-        out_criterion = loss_function(out_net, GT_npy)
+        out_criterion = loss_function(out_net_clean, GT_clean)
         out_criterion.backward()
 
         if clip_max_norm > 0:
@@ -244,10 +243,10 @@ def validate_epoch(epoch, test_dataloader, model):
             Images, GT, GT_npy = d
             sample_num += Images.shape[0]
             out_net = model(Images.to(device), GT.to(device))
-            # pred_classes = torch.max(out_net, dim=1)[1]
-            # accu_num += torch.eq(pred_classes, label.to(device)).sum()
+            out_net_clean = out_net[1:, :]
+            GT_clean = GT_npy[1:, :]
 
-            out_criterion = loss_function(out_net, GT_npy.to(device))
+            out_criterion = loss_function(out_net_clean, GT_clean.to(device))
 
             loss.update(out_criterion)
 

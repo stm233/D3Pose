@@ -47,6 +47,8 @@ class DecoderBlock(nn.Module):
         self.norm2 = norm_layer(dim)
         self.norm3 = norm_layer(dim)
         self.norm4 = norm_layer(dim)
+        self.norm5 = norm_layer(dim)
+        self.norm6 = norm_layer(dim)
         self.act_layer = nn.GELU
 
         # self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
@@ -55,33 +57,37 @@ class DecoderBlock(nn.Module):
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp1 = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=self.act_layer, drop=drop)
         self.mlp2 = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=self.act_layer, drop=drop)
-
+        self.mlp3 = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=self.act_layer, drop=drop)
 
     def forward(self, x, y):
-        """ Forward function.
-        Args:
-            x: Input feature, tensor size (B, H*W, C).
-            y: Input feature for cross attention, tensor size (B, H*W, C).
-            H, W: Spatial resolution of the input feature.
-        """
-        temporal_attention_mask = calculate_temporal_mask(30)
+        temporal_attention_mask = calculate_temporal_mask(31)
 
+        # first masked self-attention module
         shortcut1 = x
-        # x = self.norm1(x)
+        x = self.norm1(x)
 
         x = self.cross_att_module(x, x, temporal_attention_mask)
 
+        # FFN
+        x = shortcut1 + x
+        x = x + self.mlp1(self.norm2(x))
+
+        # second masked self-attention module
+        shortcut2 = x
+        x = self.norm3(x)
+        x = self.cross_att_module(x, x, temporal_attention_mask)
+
         #FFN
-        # x = shortcut1 + x
-        # x = x + self.mlp1(self.norm2(x))
+        x = shortcut2 + x
+        x = x + self.mlp2(self.norm4(x))
 
-        # shortcut2 = x
-        # x = self.norm3(x)
-
-        # x = self.cross_att_module(y, x)
+        # the cross-attention module
+        shortcut3 = x
+        x = self.norm5(x)
+        x = self.cross_att_module(y, x)
 
         # FFN
-        # x = shortcut2 + x
-        # x = x + self.mlp2(self.norm4(x))
+        x = shortcut3 + x
+        x = x + self.mlp3(self.norm6(x))
 
         return x

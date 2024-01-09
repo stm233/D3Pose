@@ -68,7 +68,7 @@ if __name__ == '__main__':
 
     # defining path
     h36m_root_path = '/media/hongji/4T/Downloads/H36M/output_feat'
-    dpw_path = '/media/hongji/4T/Downloads/3DPW/preprocess_dataset'
+    dpw_path = '/home/hongji/Documents/processed_data'
 
     # loading CLIP
     model = CLIPVisionModel.from_pretrained("openai/clip-vit-base-patch32")

@@ -1,9 +1,11 @@
 import os
+
+import torch
 from PIL import Image
 import json
 import shutil
 import numpy as np
-import pickle  # Import pickle module
+import pickle
 
 
 def process(images_path, gt_path, output_path):
@@ -20,7 +22,6 @@ def process(images_path, gt_path, output_path):
                 data = pickle.load(file, encoding='latin1')
 
             betas = data['betas'][0]
-            # Check if all elements in betas are of the same length
 
             poses = data['poses'][0]
 
@@ -40,7 +41,7 @@ def process(images_path, gt_path, output_path):
             os.makedirs(output_vid_folder, exist_ok=True)
 
             images = sorted(os.listdir(img_folder_path))
-            '/media/hongji/4T/Downloads/3DPW/imageFiles/outdoors_parcours_00'
+
             clip_count = 0
 
             for i in range(0, len(images), 1):
@@ -52,16 +53,23 @@ def process(images_path, gt_path, output_path):
                     for img in images[i:i + 30]:
                         shutil.copy2(os.path.join(img_folder_path, img), clip_folder_path)
 
+                    # adding a row of zeros at the beginning
                     clip_gt = smpl_params[i:i + 30]
+                    clip_gt = torch.from_numpy(clip_gt)
+                    zeros = torch.zeros(1, 82)
+                    clip_gt_extended = torch.cat((zeros, clip_gt), dim=0)
+                    clip_gt_extended = clip_gt_extended.cpu()
+                    clip_gt_extended_np = clip_gt_extended.numpy()
+
                     np_file_name = f'clip{clip_count:02d}.npy'
-                    np.save(os.path.join(clip_folder_path, np_file_name), clip_gt)
+                    np.save(os.path.join(clip_folder_path, np_file_name), clip_gt_extended)
 
                     clip_count += 1
 
 
 if __name__ == '__main__':
-    images_path = '/media/hongji/4T/Downloads/3DPW/images'
-    gt_path = '/media/hongji/4T/Downloads/3DPW/gt_folder/'
-    output_path = '/media/hongji/4T/Downloads/3DPW/preprocess_dataset'
+    images_path = '/media/hongji/Expansion/3DPW/images'
+    gt_path = '/media/hongji/Expansion/3DPW/gt'
+    output_path = '/media/hongji/Expansion/3DPW/processed_data'
 
     process(images_path, gt_path, output_path)

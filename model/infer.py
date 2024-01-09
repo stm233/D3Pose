@@ -238,12 +238,15 @@ def test_epoch(epoch, test_dataloader, model):
 
             for frame in range(30):
                 out_net = model(images, input_seq) # GT.to(device)
-                out_net2 = model(images, GT.to(device))
+                # out_net2 = model(images, GT.to(device))
 
-                input_seq[:,frame] = GT[:,frame]
+                input_seq[:,frame + 1] = GT[:,frame + 1]
 
             out = out_net
-            out_criterion = loss_function(out, GT.to(device))
+            out_net_clean = out[1:, :]
+            GT_clean = GT[1:, :]
+
+            out_criterion = loss_function(out_net_clean, GT_clean.to(device))
             MSE.update(out_criterion)
 
             print(

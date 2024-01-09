@@ -14,6 +14,7 @@ def conv3x3(in_ch: int, out_ch: int, stride: int = 1) -> nn.Module:
 def CNNs(i, embed_dim, in_chans):
     # Define the CNN layers
 
+    # output from the second encoder block: 384*13*12
     cnns3 = nn.Sequential(
         conv3x3(embed_dim * 8, embed_dim * 4),
         nn.GELU(),
@@ -24,6 +25,7 @@ def CNNs(i, embed_dim, in_chans):
         conv3x3(embed_dim, in_chans),
     )
 
+    # output from the second encoder block: 192*25*24
     cnns2 = nn.Sequential(
         conv3x3(embed_dim * 4, embed_dim * 2),
         nn.GELU(),
@@ -32,6 +34,7 @@ def CNNs(i, embed_dim, in_chans):
         nn.Conv2d(embed_dim, in_chans, kernel_size=3, stride=2)
     )
 
+    # output from the first encoder block: 96*50*48
     cnns1 = nn.Sequential(
         nn.Conv2d(embed_dim * 2, embed_dim, kernel_size=3, stride=2),
         nn.GELU(),

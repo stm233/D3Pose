@@ -12,7 +12,7 @@ class D3Pose(nn.Module):
                  patch_size=2,
                  in_chans=30,
                  embed_dim=48,
-                 depths=[2, 2, 6, 2],
+                 depths=[2, 2, 12, 2],
                  num_heads=[3, 6, 12, 24],
                  window_size=7,
                  mlp_ratio=4.,
@@ -88,8 +88,8 @@ class D3Pose(nn.Module):
             layer = regressor_head(
                 i = i_layer,
                 embed_dim=embed_dim,
-                in_chans=in_chans,
-                out_features = 82,
+                in_chans=31,
+                out_features=82,
             )
             self.regressor_heads.append(layer)
 
@@ -127,6 +127,7 @@ class D3Pose(nn.Module):
             encoder_out, WH, WW = encoder_block(encoder_input, WH, WW)
             encoder_input = encoder_out
 
+            C = self.embed_dim * 2 ** (i)
             if i < 3:
                 WH, WW = (WH + 1) // 2, (WW + 1) // 2
                 C = self.embed_dim * 2 ** (i + 1)
