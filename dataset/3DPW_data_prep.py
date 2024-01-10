@@ -68,8 +68,8 @@ def process(images_path, gt_path, output_path):
 
 
 if __name__ == '__main__':
-    images_path = '/home/hongji/Documents/3DPW/images'
-    gt_path = '/home/hongji/Documents/3DPW/gt'
+    images_path = '/media/hongji/Expansion//3DPW/images'
+    gt_path = '/media/hongji/Expansion/3DPW/gt'
     output_path = '/media/hongji/Expansion/3DPW/processed_data'
 
     process(images_path, gt_path, output_path)

@@ -27,7 +27,7 @@ def process_images_and_gt(src_img_directory, dest_directory, gt_directory, camer
             # Iterate over the images in the folder
             images = sorted(os.listdir(folder_path))
             clip_count = 0
-            for i in range(0, len(images), 1):
+            for i in range(0, len(images), 5):
                 if i + 30 <= len(images):
                     clip_folder = f"{folder_name}_clip_{clip_count:02d}"
                     print(clip_folder)
@@ -64,9 +64,9 @@ def process_images_and_gt(src_img_directory, dest_directory, gt_directory, camer
 
 if __name__ == '__main__':
 
-    src_directory = '/home/hongji/Documents/Human3.6M/images'
-    dest_directory = '/home/hongji/Documents/Human3.6M/processed_data'
-    gt_directory = '/home/hongji/Documents/Human3.6M/annotations_smpl'
+    src_directory = '/media/hongji/Expansion//Human3.6M/images'
+    dest_directory = '/media/hongji/Expansion//Human3.6M/processed_data'
+    gt_directory = '/media/hongji/Expansion//Human3.6M/annotations_smpl'
 
     cameras = ['ca_01', 'ca_02', 'ca_03', 'ca_04']
     for cam in cameras:

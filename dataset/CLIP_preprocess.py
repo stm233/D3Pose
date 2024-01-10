@@ -67,8 +67,8 @@ def process_3DPW(model, path):
 if __name__ == '__main__':
 
     # defining path
-    h36m_root_path = '/media/hongji/4T/Downloads/H36M/output_feat'
-    dpw_path = '/home/hongji/Documents/processed_data'
+    h36m_root_path = '/media/hongji/Expansion/Human3.6M/processed_data'
+    dpw_path = '/media/hongji/Expansion/3DPW/processed_data'
 
     # loading CLIP
     model = CLIPVisionModel.from_pretrained("openai/clip-vit-base-patch32")
@@ -76,7 +76,7 @@ if __name__ == '__main__':
     model.to('cuda')
 
     # process_H36M(model, h36m_root_path)
-    process_3DPW(model,dpw_path)
+    process_3DPW(model, dpw_path)
 
 
 
