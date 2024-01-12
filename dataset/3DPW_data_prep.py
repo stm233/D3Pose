@@ -66,10 +66,49 @@ def process(images_path, gt_path, output_path):
 
                     clip_count += 1
 
+def reorg(src_path, dest):
+    cnt = 0
+    pt_path = os.path.join(dest, 'feature_maps')
+    gt_path = os.path.join(dest, 'gt')
+    for vid in os.listdir(src_path):
+        vid_path = os.path.join(src_path, vid)
+        for clip in os.listdir(vid_path):
+            clip_path = os.path.join(src_path, vid)
+            for file in os.listdir(clip_path):
+                suffix = vid + clip
+                if file.endswith('.pt'):
+
+                    new_name = file.replace('.pt', suffix + '.pt')
+                    old_file = os.path.join(clip_path, file)
+                    new_file = os.path.join(clip_path, new_name)
+                    os.rename(old_file, new_file)
+                    new_pt_path = os.path.join(pt_path, new_name)
+
+                    shutil.copy2(new_file, new_pt_path)
+                    print('copying file' + new_file)
+
+                if file.endswith('.npy'):
+
+                    new_name = file.replace('.npy', suffix + '.npy')
+                    old_file = os.path.join(clip_path, file)
+                    new_file = os.path.join(clip_path, new_name)
+                    os.rename(old_file, new_file)
+                    new_gt_path = os.path.join(gt_path, new_name)
+
+                    shutil.copy2(new_file, new_gt_path)
+                    print('copying file' + new_file)
+
 
 if __name__ == '__main__':
     images_path = '/media/hongji/Expansion//3DPW/images'
     gt_path = '/media/hongji/Expansion/3DPW/gt'
     output_path = '/media/hongji/Expansion/3DPW/processed_data'
+    src_path = '/media/hongji/Expansion/3DPW/processed_data/'
+    dest_path = '/home/hongji/Documents/data'
 
-    process(images_path, gt_path, output_path)
+    # process(images_path, gt_path, output_path)
+    folders = ['train', 'validation', 'test']
+    for folder in folders:
+        src_path = os.path.join(src_path, folder)
+        dest_path = os.path.join(dest_path, folder)
+        reorg(src_path, dest_path)

@@ -65,12 +65,12 @@ def parse_args(argv):
     # )
 
     parser.add_argument(
-        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/processed_data/validation',
+        "-td", "--testing_Data", type=str, default='/media/hongji/Expansion/3DPW/processed_data/validation',
         help="testing dataset"
     )
 
     parser.add_argument(
-        "-d", "--Training_Data", type=str, default='/home/hongji/Documents/processed_data/train',
+        "-d", "--Training_Data", type=str, default='/media/hongji/Expansion/3DPW/processed_data/train',
         help="Training dataset"
     )
     parser.add_argument("-e", "--epochs", default=1000000, type=int, help="Number of epochs (default: %(default)s)", )
@@ -78,17 +78,17 @@ def parse_args(argv):
         "-lr", "--learning-rate", default=1e-4, type=float, help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
-        "-n", "--num-workers", type=int, default=8, help="Dataloaders threads (default: %(default)s)",
+        "-n", "--num-workers", type=int, default=4, help="Dataloaders threads (default: %(default)s)",
     )
     parser.add_argument(
         "--patch-size", type=int, nargs=2, default=(256, 256),
         help="Size of the patches to be cropped (default: %(default)s)",
     )
     parser.add_argument(
-        "--batch-size", type=int, default=80, help="Batch size (default: %(default)s)"
+        "--batch-size", type=int, default=1, help="Batch size (default: %(default)s)"
     )
     parser.add_argument(
-        "--test-batch-size", type=int, default=96, help="Test batch size (default: %(default)s)",
+        "--test-batch-size", type=int, default=2, help="Test batch size (default: %(default)s)",
     )
     parser.add_argument("--cuda", default=True, action="store_true", help="Use cuda")
     parser.add_argument(
@@ -270,10 +270,10 @@ def main(argv):
     train_transforms = transforms.Compose([Resizer()])
 
     # test_transforms = transforms.Compose([Resizer()])
-
+    print('loading datasets')
     train_dataset = myDataset(args.Training_Data, train_transforms)
     test_dataset = myDataset(args.testing_Data, train_transforms)
-
+    print('finish loading datasets')
     device = "cuda" if args.cuda and torch.cuda.is_available() else "cpu"
 
     train_dataloader = DataLoader(

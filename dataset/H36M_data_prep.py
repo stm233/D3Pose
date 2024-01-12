@@ -5,6 +5,11 @@ from PIL import Image
 import json
 import shutil
 import numpy as np
+import concurrent.futures
+
+
+def copy_file(src, dest):
+    shutil.copy2(src, dest)
 
 
 def process_images_and_gt(src_img_directory, dest_directory, gt_directory, camera):
@@ -27,15 +32,22 @@ def process_images_and_gt(src_img_directory, dest_directory, gt_directory, camer
             # Iterate over the images in the folder
             images = sorted(os.listdir(folder_path))
             clip_count = 0
-            for i in range(0, len(images), 5):
+            for i in range(0, len(images), 30):
                 if i + 30 <= len(images):
                     clip_folder = f"{folder_name}_clip_{clip_count:02d}"
                     print(clip_folder)
                     clip_folder_path = os.path.join(dest_directory, folder_name, clip_folder)
+
                     os.makedirs(clip_folder_path, exist_ok=True)
+
                     # Copy the 30 images to the new clip folder
-                    for img in images[i:i+30]:
-                        shutil.copy2(os.path.join(folder_path, img), clip_folder_path)
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        futures = []
+                        for img in images[i:i + 30]:
+                            src = os.path.join(folder_path, img)
+                            dest = clip_folder_path
+                            futures.append(executor.submit(copy_file, src, dest))
+                        concurrent.futures.wait(futures)
 
                     # Extract and save corresponding GT data
                     gt_clip_data = [gt_data[action][subaction][str(i + frame)] for frame in range(30)]
