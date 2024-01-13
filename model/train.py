@@ -65,12 +65,12 @@ def parse_args(argv):
     # )
 
     parser.add_argument(
-        "-td", "--testing_Data", type=str, default='/media/hongji/Expansion/3DPW/processed_data/validation',
+        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/data_copy/test/feature_maps',
         help="testing dataset"
     )
 
     parser.add_argument(
-        "-d", "--Training_Data", type=str, default='/media/hongji/Expansion/3DPW/processed_data/train',
+        "-d", "--Training_Data", type=str, default='/home/hongji/Documents/data_copy/train/feature_maps',
         help="Training dataset"
     )
     parser.add_argument("-e", "--epochs", default=1000000, type=int, help="Number of epochs (default: %(default)s)", )
@@ -78,17 +78,17 @@ def parse_args(argv):
         "-lr", "--learning-rate", default=1e-4, type=float, help="Learning rate (default: %(default)s)",
     )
     parser.add_argument(
-        "-n", "--num-workers", type=int, default=4, help="Dataloaders threads (default: %(default)s)",
+        "-n", "--num-workers", type=int, default=8, help="Dataloaders threads (default: %(default)s)",
     )
     parser.add_argument(
         "--patch-size", type=int, nargs=2, default=(256, 256),
         help="Size of the patches to be cropped (default: %(default)s)",
     )
     parser.add_argument(
-        "--batch-size", type=int, default=1, help="Batch size (default: %(default)s)"
+        "--batch-size", type=int, default=80, help="Batch size (default: %(default)s)"
     )
     parser.add_argument(
-        "--test-batch-size", type=int, default=2, help="Test batch size (default: %(default)s)",
+        "--test-batch-size", type=int, default=90, help="Test batch size (default: %(default)s)",
     )
     parser.add_argument("--cuda", default=True, action="store_true", help="Use cuda")
     parser.add_argument(
@@ -149,38 +149,33 @@ class myDataset(Dataset):
         # self.df = pd.read_csv(root)
         self.clipTensor = []
 
-        for vid in os.listdir(root):
-            vid_path = os.path.join(root, vid)
-            for clip in os.listdir(vid_path):
-                clip_path = os.path.join(vid_path, clip)
-                for file in os.listdir(clip_path):
-                    if file.endswith('.pt'):
-                        pt_path = os.path.join(clip_path, file)
-                        self.clipTensor.append(pt_path)
-                        break
+        for pt in os.listdir(root):
+            pt_path = os.path.join(root, pt)
+            self.clipTensor.append(pt_path)
 
         self.transform = transform
 
     def __getitem__(self, index):
         spatial_feature_map_path = self.clipTensor[index]
-        # GT_name = spatial_feature_map_path.split('/')[-2] + '.npy'
-        # clip_path = spatial_feature_map_path[:-14]
 
-        clip_dir = os.path.dirname(spatial_feature_map_path)
-        GT_path = None
+        split_string = spatial_feature_map_path.split('/')
+        parts = spatial_feature_map_path.split('_')
 
-        for file in os.listdir(clip_dir):
-            if file.endswith('.npy'):
-                GT_path = os.path.join(clip_dir, file)
-                break
+        clip_index = parts[7]
+        clip_index = clip_index.split('.')[0]
+
+        pt_name = split_string[len(split_string) - 1]
+        gt_name = pt_name.replace('image_feat', '').replace('.pt', '.npy')
+        gt_name = f'clip{clip_index}{gt_name}'
+        folder_path = '/'.join(split_string[:-2])
+
+        gt_folder_path = os.path.join(folder_path, 'gt')
+        gt_path = os.path.join(gt_folder_path, gt_name)
 
         spatial_feature_map = torch.load(spatial_feature_map_path, map_location=lambda storage, loc: storage)
         spatial_feature_map = spatial_feature_map.view(30, 200, 192)
 
-        GT_npy = torch.from_numpy(np.array(np.load(GT_path), dtype='f'))
-
-        # GT_npy = GT_npy * 1 / (100 * 1)
-        # heatmaps = GT_npy
+        GT_npy = torch.from_numpy(np.array(np.load(gt_path), dtype='f'))
 
         return spatial_feature_map, GT_npy, GT_npy
 

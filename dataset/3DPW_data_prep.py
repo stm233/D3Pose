@@ -67,13 +67,13 @@ def process(images_path, gt_path, output_path):
                     clip_count += 1
 
 def reorg(src_path, dest):
-    cnt = 0
+
     pt_path = os.path.join(dest, 'feature_maps')
     gt_path = os.path.join(dest, 'gt')
     for vid in os.listdir(src_path):
         vid_path = os.path.join(src_path, vid)
         for clip in os.listdir(vid_path):
-            clip_path = os.path.join(src_path, vid)
+            clip_path = os.path.join(vid_path, clip)
             for file in os.listdir(clip_path):
                 suffix = vid + clip
                 if file.endswith('.pt'):
@@ -109,6 +109,6 @@ if __name__ == '__main__':
     # process(images_path, gt_path, output_path)
     folders = ['train', 'validation', 'test']
     for folder in folders:
-        src_path = os.path.join(src_path, folder)
-        dest_path = os.path.join(dest_path, folder)
-        reorg(src_path, dest_path)
+        new_src_path = os.path.join(src_path, folder)
+        new_dest_path = os.path.join(dest_path, folder)
+        reorg(new_src_path, new_dest_path)

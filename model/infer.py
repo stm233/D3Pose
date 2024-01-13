@@ -107,7 +107,7 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(description="Example training script.")
 
     parser.add_argument(
-        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/processed_data/validation',
+        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/data_copy/validation/feature_maps',
         help="testing dataset"
     )
     # /media/imaginarium/2T   '/media/imaginarium/12T_2/train/
@@ -177,38 +177,33 @@ class myDataset(Dataset):
         # self.df = pd.read_csv(root)
         self.clipTensor = []
 
-        for vid in os.listdir(root):
-            vid_path = os.path.join(root, vid)
-            for clip in os.listdir(vid_path):
-                clip_path = os.path.join(vid_path, clip)
-                for file in os.listdir(clip_path):
-                    if file.endswith('.pt'):
-                        pt_path = os.path.join(clip_path, file)
-                        self.clipTensor.append(pt_path)
-                        break
+        for pt in os.listdir(root):
+            pt_path = os.path.join(root, pt)
+            self.clipTensor.append(pt_path)
 
         self.transform = transform
 
     def __getitem__(self, index):
         spatial_feature_map_path = self.clipTensor[index]
-        # GT_name = spatial_feature_map_path.split('/')[-2] + '.npy'
-        # clip_path = spatial_feature_map_path[:-14]
 
-        clip_dir = os.path.dirname(spatial_feature_map_path)
-        GT_path = None
+        split_string = spatial_feature_map_path.split('/')
+        parts = spatial_feature_map_path.split('_')
 
-        for file in os.listdir(clip_dir):
-            if file.endswith('.npy'):
-                GT_path = os.path.join(clip_dir, file)
-                break
+        clip_index = parts[7]
+        clip_index = clip_index.split('.')[0]
+
+        pt_name = split_string[len(split_string) - 1]
+        gt_name = pt_name.replace('image_feat', '').replace('.pt', '.npy')
+        gt_name = f'clip{clip_index}{gt_name}'
+        folder_path = '/'.join(split_string[:-2])
+
+        gt_folder_path = os.path.join(folder_path, 'gt')
+        gt_path = os.path.join(gt_folder_path, gt_name)
 
         spatial_feature_map = torch.load(spatial_feature_map_path, map_location=lambda storage, loc: storage)
         spatial_feature_map = spatial_feature_map.view(30, 200, 192)
 
-        GT_npy = torch.from_numpy(np.array(np.load(GT_path), dtype='f'))
-
-        # GT_npy = GT_npy * 1 / (100 * 1)
-        # heatmaps = GT_npy
+        GT_npy = torch.from_numpy(np.array(np.load(gt_path), dtype='f'))
 
         return spatial_feature_map, GT_npy
 
@@ -224,19 +219,14 @@ def test_epoch(epoch, test_dataloader, model):
     MPJPE = AverageMeter()
     P_MPJPE = AverageMeter()
     loss_function = torch.nn.MSELoss(reduction='mean')
-    sample_num = 0
 
     with torch.no_grad():
         for d in test_dataloader:
             images, GT = d
             images = images.to(device)
-            # sample_num += Images.shape[0]
-            # out_net = model(Images.to(device))
 
             start_token = torch.zeros(GT.shape, dtype=torch.float).to(device)
             input_seq = start_token
-
-            # input_seq = GT.to(device)
 
             for frame in range(30):
                 out_net = model(images, input_seq)  # GT.to(device)
@@ -246,11 +236,10 @@ def test_epoch(epoch, test_dataloader, model):
                 # input_seq[:, frame + 1] = out_net[:, frame + 1]
 
             out = out_net
-            out2 = out_net2
 
-            same = out == out2
+            # out2 = out_net2
+            # same = out == out2
 
-            # out_net_clean = out[:, 1:, :]
             out_net_clean = out_net[:, :30, :]
             GT_clean = GT[:, 1:, :]
 
@@ -260,8 +249,6 @@ def test_epoch(epoch, test_dataloader, model):
             print(
                 f"Test epoch {epoch}: Average losses:"
                 f"\tMSE: {MSE.avg:.5f} |"
-                f"\tMPJPE: {MPJPE.avg:.3f} |"
-                f"\tP_MPJPE: {P_MPJPE.avg:.3f} |"
             )
 
     return MSE.avg
