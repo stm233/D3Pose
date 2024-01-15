@@ -14,8 +14,11 @@ pip install torchvision
 pip install scikit-image
 pip install timm
 pip install transformers
-pip 
-
+pip install pygame
+pip install PyOpenGL PyOpenGL_accelerate
+pip install pyrr
+pip install chumpy
+pip install opencv-python
 
 ```
 

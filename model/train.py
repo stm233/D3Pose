@@ -65,7 +65,7 @@ def parse_args(argv):
     # )
 
     parser.add_argument(
-        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/data_copy/test/feature_maps',
+        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/data_copy/validation/feature_maps',
         help="testing dataset"
     )
 
@@ -85,10 +85,10 @@ def parse_args(argv):
         help="Size of the patches to be cropped (default: %(default)s)",
     )
     parser.add_argument(
-        "--batch-size", type=int, default=80, help="Batch size (default: %(default)s)"
+        "--batch-size", type=int, default=30, help="Batch size (default: %(default)s)"
     )
     parser.add_argument(
-        "--test-batch-size", type=int, default=90, help="Test batch size (default: %(default)s)",
+        "--test-batch-size", type=int, default=30, help="Test batch size (default: %(default)s)",
     )
     parser.add_argument("--cuda", default=True, action="store_true", help="Use cuda")
     parser.add_argument(
@@ -101,7 +101,7 @@ def parse_args(argv):
                         help="gradient clipping max norm (default: %(default)s")
 
     parser.add_argument("--checkpoint",
-                        default="",  # ./train0008/18.ckpt
+                        default="",  # ./train0008/10.ckpt
                         type=str, help="Path to a checkpoint")
 
     args = parser.parse_args(argv)

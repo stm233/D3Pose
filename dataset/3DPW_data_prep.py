@@ -9,7 +9,6 @@ import pickle
 
 
 def process(images_path, gt_path, output_path):
-
     for folder_name in os.listdir(gt_path):
 
         full_folder_path = os.path.join(gt_path, folder_name)
@@ -66,8 +65,8 @@ def process(images_path, gt_path, output_path):
 
                     clip_count += 1
 
-def reorg(src_path, dest):
 
+def reorg(src_path, dest):
     pt_path = os.path.join(dest, 'feature_maps')
     gt_path = os.path.join(dest, 'gt')
     for vid in os.listdir(src_path):
@@ -77,7 +76,6 @@ def reorg(src_path, dest):
             for file in os.listdir(clip_path):
                 suffix = vid + clip
                 if file.endswith('.pt'):
-
                     new_name = file.replace('.pt', suffix + '.pt')
                     old_file = os.path.join(clip_path, file)
                     new_file = os.path.join(clip_path, new_name)
@@ -88,7 +86,6 @@ def reorg(src_path, dest):
                     print('copying file' + new_file)
 
                 if file.endswith('.npy'):
-
                     new_name = file.replace('.npy', suffix + '.npy')
                     old_file = os.path.join(clip_path, file)
                     new_file = os.path.join(clip_path, new_name)
@@ -97,6 +94,30 @@ def reorg(src_path, dest):
 
                     shutil.copy2(new_file, new_gt_path)
                     print('copying file' + new_file)
+
+
+def rename(src_path):
+    for folder in os.listdir(src_path):
+        if folder == 'feature_maps':
+            folder_path = os.path.join(src_path, folder)
+            for feature_maps in os.listdir(folder_path):
+                new_feature_maps = feature_maps.replace('image_feat', '')
+                old_path = os.path.join(folder_path, feature_maps)
+                new_path = os.path.join(folder_path, new_feature_maps)
+                os.rename(old_path, new_path)
+
+                print('new feature_maps_name: ' + feature_maps)
+        if folder == 'gt':
+            gt_folder_path = os.path.join(src_path, folder)
+            for gt in os.listdir(gt_folder_path):
+                parts = gt.split('_')
+                clip_len = len(parts[len(parts) - 1])
+                new_gt = gt[clip_len:]
+                old_path = os.path.join(gt_folder_path, gt)
+                new_path = os.path.join(gt_folder_path, new_gt)
+                os.rename(old_path, new_path)
+                print('new gt_name: ' + gt)
+
 
 
 if __name__ == '__main__':
@@ -111,4 +132,5 @@ if __name__ == '__main__':
     for folder in folders:
         new_src_path = os.path.join(src_path, folder)
         new_dest_path = os.path.join(dest_path, folder)
-        reorg(new_src_path, new_dest_path)
+        # reorg(new_src_path, new_dest_path)
+        rename(new_dest_path)

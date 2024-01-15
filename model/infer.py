@@ -107,7 +107,7 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(description="Example training script.")
 
     parser.add_argument(
-        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/data_copy/validation/feature_maps',
+        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/data_copy/test/feature_maps',
         help="testing dataset"
     )
     # /media/imaginarium/2T   '/media/imaginarium/12T_2/train/
@@ -230,12 +230,10 @@ def test_epoch(epoch, test_dataloader, model):
 
             for frame in range(30):
                 out_net = model(images, input_seq)  # GT.to(device)
-                out_net2 = model(images, GT.to(device))
+                # out_net2 = model(images, GT.to(device))
 
-                input_seq[:, frame + 1] = GT[:, frame + 1]
-                # input_seq[:, frame + 1] = out_net[:, frame + 1]
-
-            out = out_net
+                # input_seq[:, frame + 1] = GT[:, frame + 1]
+                input_seq[:, frame + 1] = out_net[:, frame + 1]
 
             # out2 = out_net2
             # same = out == out2
@@ -289,6 +287,5 @@ def main(argv):
     loss = test_epoch(0, test_dataloader, net)
 
 
-# Press the green button in the gutter to run the script.
 if __name__ == '__main__':
     main(sys.argv[1:])
