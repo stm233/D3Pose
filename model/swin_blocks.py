@@ -1,10 +1,9 @@
-import torch
-import math
-import numpy as np
-from timm.models.layers import DropPath, to_2tuple, trunc_normal_
-from torch import nn
+from timm.layers import to_2tuple, DropPath
+
 from att_module import *
-from util import *
+from model.util import Mlp, window_partition, window_reverse
+import torch.nn.functional as F
+
 
 
 class swin_encoder_block(nn.Module):

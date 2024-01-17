@@ -1,11 +1,4 @@
-import torch
-import math
-import numpy as np
-from timm.models.layers import DropPath, to_2tuple, trunc_normal_
-from torch import nn
-from att_module import *
 from swin_blocks import *
-from util import *
 
 
 def calculate_temporal_mask(N, device='cuda'):
@@ -72,14 +65,14 @@ class DecoderBlock(nn.Module):
         x = shortcut1 + x
         x = x + self.mlp1(self.norm2(x))
 
-        # second masked self-attention module
-        shortcut2 = x
-        x = self.norm3(x)
-        x = self.cross_att_module(x, x, temporal_attention_mask)
-
-        #FFN
-        x = shortcut2 + x
-        x = x + self.mlp2(self.norm4(x))
+        # # second masked self-attention module
+        # shortcut2 = x
+        # x = self.norm3(x)
+        # x = self.cross_att_module(x, x, temporal_attention_mask)
+        #
+        # #FFN
+        # x = shortcut2 + x
+        # x = x + self.mlp2(self.norm4(x))
 
         # the cross-attention module
         shortcut3 = x

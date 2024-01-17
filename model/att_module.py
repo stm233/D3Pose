@@ -1,9 +1,5 @@
 import torch
-import math
-import torch.nn.functional as F
-import numpy as np
-from timm.models.layers import DropPath, to_2tuple, trunc_normal_
-from util import *
+from timm.models.layers import trunc_normal_
 
 import torch.nn as nn
 

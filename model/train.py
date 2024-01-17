@@ -65,12 +65,12 @@ def parse_args(argv):
     # )
 
     parser.add_argument(
-        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/data_copy/validation/feature_maps',
+        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/data/validation/feature_maps',
         help="testing dataset"
     )
 
     parser.add_argument(
-        "-d", "--Training_Data", type=str, default='/home/hongji/Documents/data_copy/train/feature_maps',
+        "-d", "--Training_Data", type=str, default='/home/hongji/Documents/data/train/feature_maps',
         help="Training dataset"
     )
     parser.add_argument("-e", "--epochs", default=1000000, type=int, help="Number of epochs (default: %(default)s)", )
@@ -85,10 +85,10 @@ def parse_args(argv):
         help="Size of the patches to be cropped (default: %(default)s)",
     )
     parser.add_argument(
-        "--batch-size", type=int, default=30, help="Batch size (default: %(default)s)"
+        "--batch-size", type=int, default=46, help="Batch size (default: %(default)s)"
     )
     parser.add_argument(
-        "--test-batch-size", type=int, default=30, help="Test batch size (default: %(default)s)",
+        "--test-batch-size", type=int, default=60, help="Test batch size (default: %(default)s)",
     )
     parser.add_argument("--cuda", default=True, action="store_true", help="Use cuda")
     parser.add_argument(
@@ -159,14 +159,9 @@ class myDataset(Dataset):
         spatial_feature_map_path = self.clipTensor[index]
 
         split_string = spatial_feature_map_path.split('/')
-        parts = spatial_feature_map_path.split('_')
-
-        clip_index = parts[7]
-        clip_index = clip_index.split('.')[0]
-
         pt_name = split_string[len(split_string) - 1]
-        gt_name = pt_name.replace('image_feat', '').replace('.pt', '.npy')
-        gt_name = f'clip{clip_index}{gt_name}'
+        gt_name = pt_name.replace('.pt','.npy')
+
         folder_path = '/'.join(split_string[:-2])
 
         gt_folder_path = os.path.join(folder_path, 'gt')
@@ -205,9 +200,24 @@ def train_one_epoch(model, train_dataloader, optimizer, epoch, clip_max_norm):
         out_net_clean = out_net[:, :30, :]
         GT_clean = GT_npy[:, 1:, :]
 
-        loss_function = torch.nn.MSELoss(reduction='mean')
-        out_criterion = loss_function(out_net_clean, GT_clean)
-        out_criterion.backward()
+        beta_out = out_net_clean[:, -1, 10:]
+        pose_out = out_net_clean[:, :, :72]
+
+        gt_beta = GT_clean[:, -1, 10:]
+        gt_pose = GT_clean[:, :, :72]
+
+        loss_function_beta = torch.nn.MSELoss(reduction='mean')
+        loss_function_pose = torch.nn.MSELoss(reduction='mean')
+
+        out_criterion_beta = loss_function_beta(beta_out, gt_beta)
+        out_criterion_pose = loss_function_pose(pose_out, gt_pose)
+
+        alpha = 8000  # weight for the first loss
+        beta = 2000  # weight for the second loss
+
+        combined_loss = alpha * out_criterion_pose + beta * out_criterion_beta
+
+        combined_loss.backward()
 
         if clip_max_norm > 0:
             torch.nn.utils.clip_grad_norm_(model.parameters(), clip_max_norm)
@@ -220,7 +230,9 @@ def train_one_epoch(model, train_dataloader, optimizer, epoch, clip_max_norm):
                 f"Train epoch {epoch}: ["
                 f"{i * len(Images)}/{len(train_dataloader.dataset)}"
                 f" ({100. * i / len(train_dataloader):.0f}%)]"
-                f'\tLoss: {out_criterion.item():.4f} |'
+                f'\tLoss: {combined_loss.item():.7f} |'
+                f'\tbeta_Loss: {out_criterion_beta.item():.7f} |'
+                f'\tpose_Loss: {out_criterion_pose.item():.7f} |'
                 # f'\tacc: {accu_num.item() / sample_num:.4f} |'
                 f"\ttime: {enc_time:.1f}"
             )
@@ -240,16 +252,34 @@ def validate_epoch(epoch, test_dataloader, model):
             Images, GT, GT_npy = d
             sample_num += Images.shape[0]
             out_net = model(Images.to(device), GT.to(device))
+
             out_net_clean = out_net[:, :30, :]
             GT_clean = GT_npy[:, 1:, :]
 
-            out_criterion = loss_function(out_net_clean, GT_clean.to(device))
+            beta_out = out_net_clean[:, -1, 10:]
+            pose_out = out_net_clean[:, :, :72]
 
-            loss.update(out_criterion)
+            gt_beta = GT_clean[:, -1, 10:]
+            gt_pose = GT_clean[:, :, :72]
+
+            loss_function_beta = torch.nn.MSELoss(reduction='mean')
+            loss_function_pose = torch.nn.MSELoss(reduction='mean')
+
+            out_criterion_beta = loss_function_beta(beta_out.to(device), gt_beta.to(device))
+            out_criterion_pose = loss_function_pose(pose_out.to(device), gt_pose.to(device))
+
+            alpha = 8000  # weight for the first loss
+            beta = 2000  # weight for the second loss
+
+            combined_loss = alpha * out_criterion_pose + beta * out_criterion_beta
+
+            loss.update(combined_loss)
 
     print(
         f"Test epoch {epoch}: Average losses:"
-        f"\tLoss: {loss.avg:.3f} |"
+        f"\tLoss: {loss.avg:.7f} |"
+        f'\tbeta_Loss: {out_criterion_beta.item():.7f} |'
+        f'\tpose_Loss: {out_criterion_pose.item():.7f} |'
         # f'\tacc: {accu_num.item() / sample_num:.4f} |'
     )
     return loss.avg

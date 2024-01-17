@@ -1,7 +1,7 @@
 from torch.nn.init import trunc_normal_
 from encoder_block import *
 from decoder_block import *
-from util import *
+from model.util import PatchEmbed, PatchMerging
 from regressor_head import *
 
 
@@ -10,7 +10,7 @@ class D3Pose(nn.Module):
                  pretrain_img_size=256,
                  patch_size=2,
                  in_chans=30,
-                 embed_dim=48*3,
+                 embed_dim=48*2,
                  depths=[2, 2, 12, 2],
                  num_heads=[3, 6, 12, 24],
                  window_size=7,

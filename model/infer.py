@@ -187,14 +187,9 @@ class myDataset(Dataset):
         spatial_feature_map_path = self.clipTensor[index]
 
         split_string = spatial_feature_map_path.split('/')
-        parts = spatial_feature_map_path.split('_')
-
-        clip_index = parts[7]
-        clip_index = clip_index.split('.')[0]
-
         pt_name = split_string[len(split_string) - 1]
-        gt_name = pt_name.replace('image_feat', '').replace('.pt', '.npy')
-        gt_name = f'clip{clip_index}{gt_name}'
+        gt_name = pt_name.replace('.pt', '.npy')
+
         folder_path = '/'.join(split_string[:-2])
 
         gt_folder_path = os.path.join(folder_path, 'gt')
