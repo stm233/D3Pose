@@ -75,12 +75,12 @@ class DecoderBlock(nn.Module):
         # x = x + self.mlp2(self.norm4(x))
 
         # the cross-attention module
-        shortcut3 = x
-        x = self.norm5(x)
-        x = self.cross_att_module(y, x)
+        shortcut3 = y
+        y = self.norm5(x)
+        y = self.cross_att_module(x, y)
 
         # FFN
-        x = shortcut3 + x
-        x = x + self.mlp3(self.norm6(x))
+        y = shortcut3 + y
+        y = y + self.mlp3(self.norm6(x))
 
-        return x
+        return y

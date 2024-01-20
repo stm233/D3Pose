@@ -107,10 +107,9 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(description="Example training script.")
 
     parser.add_argument(
-        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/data_copy/test/feature_maps',
+        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/h36m_data/validation/feature_maps',
         help="testing dataset"
     )
-    # /media/imaginarium/2T   '/media/imaginarium/12T_2/train/
 
     parser.add_argument(
         "-n", "--num-workers", type=int, default=8, help="Dataloaders threads (default: %(default)s)",
@@ -129,7 +128,7 @@ def parse_args(argv):
                         help="gradient clipping max norm (default: %(default)s")
 
     parser.add_argument("--checkpoint",
-                        default="/home/hongji/Documents/save4.ckpt",  # ./train0008/18.ckpt
+                        default="/home/hongji/Documents/save0.ckpt",  # ./train0008/18.ckpt
                         type=str, help="Path to a checkpoint")
 
     args = parser.parse_args(argv)
@@ -220,28 +219,63 @@ def test_epoch(epoch, test_dataloader, model):
             images, GT = d
             images = images.to(device)
 
+            # Calculate mean and standard deviation of GT
+            mu, sigma = GT.mean(), GT.std()
+
+            # Create a start_token tensor with similar distribution
+            # start_token = torch.normal(mean=mu, std=sigma, size=GT.shape).to(device)
+
             start_token = torch.zeros(GT.shape, dtype=torch.float).to(device)
+
             input_seq = start_token
+
+            # test pseudo gt
 
             for frame in range(30):
                 out_net = model(images, input_seq)  # GT.to(device)
-                # out_net2 = model(images, GT.to(device))
+                out_net2 = model(images, GT.to(device))
 
-                # input_seq[:, frame + 1] = GT[:, frame + 1]
-                input_seq[:, frame + 1] = out_net[:, frame + 1]
-
-            # out2 = out_net2
-            # same = out == out2
+                input_seq[:, frame + 1] = GT[:, frame + 1]
+                # input_seq[:, frame + 1] = out_net[:, frame]
 
             out_net_clean = out_net[:, :30, :]
+            out_net2_clean = out_net2[:, :30, :]
             GT_clean = GT[:, 1:, :]
 
-            out_criterion = loss_function(out_net_clean, GT_clean.to(device))
-            MSE.update(out_criterion)
+            same = out_net_clean == out_net2_clean
+
+            beta_out = out_net_clean[:, 0, -10:]
+            pose_out = out_net_clean[:, :, :72]
+            pose_first_frame_out = pose_out[:, 0, :]
+
+            gt_beta = GT_clean[:, -1, -10:]
+            gt_pose = GT_clean[:, :, :72]
+            pose_first_frame_gt = gt_pose[:, 0, :]
+
+            loss_function_beta = torch.nn.MSELoss(reduction='mean')
+            loss_function_pose = torch.nn.MSELoss(reduction='mean')
+            loss_function_pose_first = torch.nn.MSELoss(reduction='mean')
+
+            out_criterion_beta = loss_function_beta(beta_out.to(device), gt_beta.to(device))
+            out_criterion_pose = loss_function_pose(pose_out.to(device), gt_pose.to(device))
+            out_criterion_pose_first = loss_function_pose_first(pose_first_frame_out.to(device),
+                                                                pose_first_frame_gt.to(device))
+
+            alpha = 100  # weight for the first loss
+            beta = 100  # weight for the second loss
+            the = 800
+
+            combined_loss = alpha * out_criterion_pose + beta * out_criterion_beta + the * out_criterion_pose_first
+
+            # out_criterion = loss_function(out_net_clean, GT_clean.to(device))
+            MSE.update(combined_loss)
 
             print(
                 f"Test epoch {epoch}: Average losses:"
-                f"\tMSE: {MSE.avg:.5f} |"
+                f"\tMSE: {MSE.avg:.7f} |"
+                f'\tbeta_Loss: {out_criterion_beta.item():.7f} |'
+                f'\tpose_Loss: {out_criterion_pose.item():.7f} |'
+                f'\tpose_First_Frame: {out_criterion_pose_first.item():.7f} |'
             )
 
     return MSE.avg

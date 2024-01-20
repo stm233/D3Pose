@@ -6,14 +6,16 @@ import json
 import shutil
 import numpy as np
 import pickle
+from transformers import CLIPProcessor,  CLIPVisionModel
 
-
-def process(images_path, gt_path, output_path):
+def process(images_path, gt_path, output_path, model):
     for folder_name in os.listdir(gt_path):
 
         full_folder_path = os.path.join(gt_path, folder_name)
         new_folder_path = os.path.join(output_path, folder_name)
         os.makedirs(new_folder_path, exist_ok=True)
+
+        dest_path = '/home/hongji/Documents/data/train/feature_maps'
 
         for gt in os.listdir(full_folder_path):
             gt_file_path = os.path.join(full_folder_path, gt)
@@ -45,12 +47,23 @@ def process(images_path, gt_path, output_path):
 
             for i in range(0, len(images), 1):
                 if i + 30 < len(images):
+                    images_folder = []
                     clip_folder = f"_clip_{clip_count:02d}"
                     print("saving clip", clip_folder)
+
                     clip_folder_path = os.path.join(output_vid_folder, clip_folder)
-                    os.makedirs(clip_folder_path, exist_ok=True)
-                    # for img in images[i:i + 30]:
-                    #     shutil.copy2(os.path.join(img_folder_path, img), clip_folder_path)
+                    # os.makedirs(clip_folder_path, exist_ok=True)
+                    for img in images[i:i + 30]:
+                        image_path = os.path.join(img_folder_path, img)
+                        image = Image.open(image_path)
+                        images_folder.append(image)
+
+                    CLIP_inputs = processor(images=images_folder, return_tensors="pt")
+                    outputs = model(**CLIP_inputs.to('cuda'))
+                    last_hidden_state = outputs.last_hidden_state
+
+                    save_path = os.path.join(pt_dest_path, pt_name)
+                    torch.save(last_hidden_state.detach(), save_path)
 
                     # adding a row of zeros at the beginning
                     clip_gt = smpl_params[i:i + 30]
@@ -121,16 +134,21 @@ def rename(src_path):
 
 
 if __name__ == '__main__':
+
     images_path = '/media/hongji/Expansion//3DPW/images'
     gt_path = '/media/hongji/Expansion/3DPW/gt'
     output_path = '/media/hongji/Expansion/3DPW/processed_data'
     src_path = '/media/hongji/Expansion/3DPW/processed_data/'
     dest_path = '/home/hongji/Documents/data'
 
-    # process(images_path, gt_path, output_path)
-    folders = ['train', 'validation', 'test']
-    for folder in folders:
-        new_src_path = os.path.join(src_path, folder)
-        new_dest_path = os.path.join(dest_path, folder)
-        # reorg(new_src_path, new_dest_path)
-        rename(new_dest_path)
+    model = CLIPVisionModel.from_pretrained("openai/clip-vit-base-patch32")
+    processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+    model.to('cuda')
+
+    process(images_path, gt_path, output_path)
+    # folders = ['train', 'validation', 'test']
+    # for folder in folders:
+    #     new_src_path = os.path.join(src_path, folder)
+    #     new_dest_path = os.path.join(dest_path, folder)
+    #     # reorg(new_src_path, new_dest_path)
+    #     rename(new_dest_path)

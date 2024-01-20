@@ -91,7 +91,7 @@ class cross_attention(nn.Module):
 
     def forward(self, x, y, mask=None):
 
-        # reshape for multi-head?
+        # x provides k and v
         B_, N, C = x.shape
         query = self.q(y).reshape(B_, N, 1, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4).contiguous()
         kv = self.kv(x).reshape(B_, N, 2, self.num_heads, C // self.num_heads).permute(2, 0, 3, 1, 4).contiguous()

@@ -10,7 +10,7 @@ class D3Pose(nn.Module):
                  pretrain_img_size=256,
                  patch_size=2,
                  in_chans=30,
-                 embed_dim=48*2,
+                 embed_dim=48,
                  depths=[2, 2, 12, 2],
                  num_heads=[3, 6, 12, 24],
                  window_size=7,
@@ -139,7 +139,7 @@ class D3Pose(nn.Module):
 
             # encoder_out as part of decoder's input
             decoder_block = self.decoder_layers[i]
-            decoder_out = decoder_block(decoder_out, encoder_head)
+            decoder_out = decoder_block(encoder_head, decoder_out)
 
         out = decoder_out
 

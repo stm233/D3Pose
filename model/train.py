@@ -65,12 +65,12 @@ def parse_args(argv):
     # )
 
     parser.add_argument(
-        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/data/validation/feature_maps',
+        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/h36m_data/validation/feature_maps',
         help="testing dataset"
     )
 
     parser.add_argument(
-        "-d", "--Training_Data", type=str, default='/home/hongji/Documents/data/train/feature_maps',
+        "-d", "--Training_Data", type=str, default='/home/hongji/Documents/h36m_data/train/feature_maps',
         help="Training dataset"
     )
     parser.add_argument("-e", "--epochs", default=1000000, type=int, help="Number of epochs (default: %(default)s)", )
@@ -85,10 +85,10 @@ def parse_args(argv):
         help="Size of the patches to be cropped (default: %(default)s)",
     )
     parser.add_argument(
-        "--batch-size", type=int, default=46, help="Batch size (default: %(default)s)"
+        "--batch-size", type=int, default=82, help="Batch size (default: %(default)s)"
     )
     parser.add_argument(
-        "--test-batch-size", type=int, default=60, help="Test batch size (default: %(default)s)",
+        "--test-batch-size", type=int, default=90, help="Test batch size (default: %(default)s)",
     )
     parser.add_argument("--cuda", default=True, action="store_true", help="Use cuda")
     parser.add_argument(
@@ -200,22 +200,28 @@ def train_one_epoch(model, train_dataloader, optimizer, epoch, clip_max_norm):
         out_net_clean = out_net[:, :30, :]
         GT_clean = GT_npy[:, 1:, :]
 
-        beta_out = out_net_clean[:, -1, 10:]
+        beta_out = out_net_clean[:, 0, -10:]
         pose_out = out_net_clean[:, :, :72]
+        pose_first_frame_out = pose_out[:, 0, :]
 
-        gt_beta = GT_clean[:, -1, 10:]
+        gt_beta = GT_clean[:, -1, -10:]
         gt_pose = GT_clean[:, :, :72]
+        pose_first_frame_gt = gt_pose[:, 1, :]
 
         loss_function_beta = torch.nn.MSELoss(reduction='mean')
         loss_function_pose = torch.nn.MSELoss(reduction='mean')
+        loss_function_pose_first = torch.nn.MSELoss(reduction='mean')
 
-        out_criterion_beta = loss_function_beta(beta_out, gt_beta)
-        out_criterion_pose = loss_function_pose(pose_out, gt_pose)
+        out_criterion_beta = loss_function_beta(beta_out.to(device), gt_beta.to(device))
+        out_criterion_pose = loss_function_pose(pose_out.to(device), gt_pose.to(device))
+        out_criterion_pose_first = loss_function_pose_first(pose_first_frame_out.to(device), pose_first_frame_gt.to(device))
 
-        alpha = 8000  # weight for the first loss
-        beta = 2000  # weight for the second loss
+        alpha = 100  # weight for the first loss
+        beta = 100  # weight for the second loss
+        the = 800
 
-        combined_loss = alpha * out_criterion_pose + beta * out_criterion_beta
+        combined_loss = alpha * out_criterion_pose + beta * out_criterion_beta + the * out_criterion_pose_first
+        # combined_loss = the * out_criterion_pose_first
 
         combined_loss.backward()
 
@@ -233,6 +239,7 @@ def train_one_epoch(model, train_dataloader, optimizer, epoch, clip_max_norm):
                 f'\tLoss: {combined_loss.item():.7f} |'
                 f'\tbeta_Loss: {out_criterion_beta.item():.7f} |'
                 f'\tpose_Loss: {out_criterion_pose.item():.7f} |'
+                f'\tpose_First_Frame_Loss: {out_criterion_pose_first.item():}'
                 # f'\tacc: {accu_num.item() / sample_num:.4f} |'
                 f"\ttime: {enc_time:.1f}"
             )
@@ -256,22 +263,27 @@ def validate_epoch(epoch, test_dataloader, model):
             out_net_clean = out_net[:, :30, :]
             GT_clean = GT_npy[:, 1:, :]
 
-            beta_out = out_net_clean[:, -1, 10:]
+            beta_out = out_net_clean[:, 0, -10:]
             pose_out = out_net_clean[:, :, :72]
+            pose_first_frame_out = pose_out[:, 0, :]
 
-            gt_beta = GT_clean[:, -1, 10:]
+            gt_beta = GT_clean[:, -1, -10:]
             gt_pose = GT_clean[:, :, :72]
+            pose_first_frame_gt = gt_pose[:, 0, :]
 
             loss_function_beta = torch.nn.MSELoss(reduction='mean')
             loss_function_pose = torch.nn.MSELoss(reduction='mean')
+            loss_function_pose_first = torch.nn.MSELoss(reduction='mean')
 
             out_criterion_beta = loss_function_beta(beta_out.to(device), gt_beta.to(device))
             out_criterion_pose = loss_function_pose(pose_out.to(device), gt_pose.to(device))
+            out_criterion_pose_first = loss_function_pose_first(pose_first_frame_out.to(device), pose_first_frame_gt.to(device))
 
-            alpha = 8000  # weight for the first loss
-            beta = 2000  # weight for the second loss
+            alpha = 100  # weight for the first loss
+            beta = 100  # weight for the second loss
+            the = 800
 
-            combined_loss = alpha * out_criterion_pose + beta * out_criterion_beta
+            combined_loss = alpha * out_criterion_pose + beta * out_criterion_beta + the * out_criterion_pose_first
 
             loss.update(combined_loss)
 
@@ -280,6 +292,7 @@ def validate_epoch(epoch, test_dataloader, model):
         f"\tLoss: {loss.avg:.7f} |"
         f'\tbeta_Loss: {out_criterion_beta.item():.7f} |'
         f'\tpose_Loss: {out_criterion_pose.item():.7f} |'
+        f'\tpose_First_Frame_Loss: {out_criterion_pose_first.item():}'
         # f'\tacc: {accu_num.item() / sample_num:.4f} |'
     )
     return loss.avg

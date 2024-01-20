@@ -82,6 +82,44 @@ def process_images_and_gt(src_img_directory, dest_directory, gt_directory, camer
                     prevTime = currTime
                     clip_count += 1
 
+def reorg(reorg_path, dest_path):
+    pt_folder_path = os.path.join(reorg_path, 'feature_maps')
+    gt_folder_path = os.path.join(reorg_path, 'gt')
+
+    train_dest_path = os.path.join(dest_path, 'train')
+    train_ft_dest_path = os.path.join(train_dest_path, 'feature_maps')
+    train_gt_dest_path = os.path.join(train_dest_path, 'gt')
+
+    val_dest_path = os.path.join(dest_path, 'validation')
+    val_ft_dest_path = os.path.join(val_dest_path, 'feature_maps')
+    val_gt_dest_path = os.path.join(val_dest_path, 'gt')
+
+    subject_list = ['s_01', 's_05', 's_06', 's_07', 's_08', 's_09',  's_11', ]
+
+    for pt in os.listdir(pt_folder_path):
+        if any(subj in pt for subj in subject_list[:5]):
+            pt_path = os.path.join(pt_folder_path, pt)
+            new_pt_path = os.path.join(train_ft_dest_path, pt)
+            shutil.copy(pt_path, new_pt_path)
+
+            gt_name = pt.replace('.pt','.npy')
+            gt_path = os.path.join(gt_folder_path, gt_name)
+            new_gt_path = os.path.join(train_gt_dest_path, gt_name)
+            shutil.copy(gt_path, new_gt_path)
+            print('Copied ' + pt)
+
+        # Check if the string contains any of the last two subjects (for validation/testing)
+        elif any(subj in pt for subj in subject_list[-2:]):
+            pt_path = os.path.join(pt_folder_path, pt)
+            new_pt_path = os.path.join(val_ft_dest_path, pt)
+            shutil.copy(pt_path, new_pt_path)
+
+            gt_name = pt.replace('.pt', '.npy')
+            gt_path = os.path.join(gt_folder_path, gt_name)
+            new_gt_path = os.path.join(val_gt_dest_path, gt_name)
+            shutil.copy(gt_path, new_gt_path)
+            print('Copied ' + pt)
+
 
 if __name__ == '__main__':
 
@@ -92,6 +130,12 @@ if __name__ == '__main__':
     processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
     model.to('cuda')
 
-    cameras = ['ca_01', 'ca_02', 'ca_03', 'ca_04']
-    for cam in cameras:
-        process_images_and_gt(src_directory, dest_directory, gt_directory, cam, model)
+    reorg_path = '/home/hongji/Documents/data/train'
+    dest_path = '/home/hongji/Documents/h36m_data'
+
+    reorg(reorg_path, dest_path)
+
+
+    # cameras = ['ca_01', 'ca_02', 'ca_03', 'ca_04']
+    # for cam in cameras:
+    #     process_images_and_gt(src_directory, dest_directory, gt_directory, cam, model)
