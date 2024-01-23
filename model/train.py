@@ -172,7 +172,14 @@ class myDataset(Dataset):
 
         GT_npy = torch.from_numpy(np.array(np.load(gt_path), dtype='f'))
 
-        return spatial_feature_map, GT_npy, GT_npy
+        # mu + sigma * random_number
+        random_tensor = GT_npy + 0.2 * torch.randn_like(GT_npy)
+
+        # Set the first column to zero
+        random_tensor[:, 0] = 0
+        # GT_npy = random_tensor
+
+        return spatial_feature_map, random_tensor, GT_npy
 
     def __len__(self):
         return len(self.clipTensor)
@@ -200,7 +207,7 @@ def train_one_epoch(model, train_dataloader, optimizer, epoch, clip_max_norm):
         out_net_clean = out_net[:, :30, :]
         GT_clean = GT_npy[:, 1:, :]
 
-        beta_out = out_net_clean[:, 0, -10:]
+        beta_out = out_net_clean[:, -1, -10:]
         pose_out = out_net_clean[:, :, :72]
         pose_first_frame_out = pose_out[:, 0, :]
 
@@ -211,14 +218,16 @@ def train_one_epoch(model, train_dataloader, optimizer, epoch, clip_max_norm):
         loss_function_beta = torch.nn.MSELoss(reduction='mean')
         loss_function_pose = torch.nn.MSELoss(reduction='mean')
         loss_function_pose_first = torch.nn.MSELoss(reduction='mean')
+        loss_function_GTs = torch.nn.MSELoss(reduction='mean')
 
         out_criterion_beta = loss_function_beta(beta_out.to(device), gt_beta.to(device))
         out_criterion_pose = loss_function_pose(pose_out.to(device), gt_pose.to(device))
         out_criterion_pose_first = loss_function_pose_first(pose_first_frame_out.to(device), pose_first_frame_gt.to(device))
+        out_criterion_GTs = loss_function_GTs(srcGT.to(device),GT_npy.to(device))
 
         alpha = 100  # weight for the first loss
         beta = 100  # weight for the second loss
-        the = 800
+        the = 100
 
         combined_loss = alpha * out_criterion_pose + beta * out_criterion_beta + the * out_criterion_pose_first
         # combined_loss = the * out_criterion_pose_first
@@ -229,7 +238,7 @@ def train_one_epoch(model, train_dataloader, optimizer, epoch, clip_max_norm):
             torch.nn.utils.clip_grad_norm_(model.parameters(), clip_max_norm)
         optimizer.step()
 
-        if i % 200 == 0:
+        if i % 100 == 0:
             enc_time = time.time() - start
             start = time.time()
             print(
@@ -239,6 +248,7 @@ def train_one_epoch(model, train_dataloader, optimizer, epoch, clip_max_norm):
                 f'\tLoss: {combined_loss.item():.7f} |'
                 f'\tbeta_Loss: {out_criterion_beta.item():.7f} |'
                 f'\tpose_Loss: {out_criterion_pose.item():.7f} |'
+                f'\tGT_Loss: {out_criterion_GTs.item():.7f} |'
                 f'\tpose_First_Frame_Loss: {out_criterion_pose_first.item():}'
                 # f'\tacc: {accu_num.item() / sample_num:.4f} |'
                 f"\ttime: {enc_time:.1f}"
@@ -258,12 +268,12 @@ def validate_epoch(epoch, test_dataloader, model):
         for d in test_dataloader:
             Images, GT, GT_npy = d
             sample_num += Images.shape[0]
-            out_net = model(Images.to(device), GT.to(device))
+            out_net = model(Images.to(device), GT_npy.to(device))
 
             out_net_clean = out_net[:, :30, :]
             GT_clean = GT_npy[:, 1:, :]
 
-            beta_out = out_net_clean[:, 0, -10:]
+            beta_out = out_net_clean[:, -1, -10:]
             pose_out = out_net_clean[:, :, :72]
             pose_first_frame_out = pose_out[:, 0, :]
 
@@ -281,7 +291,7 @@ def validate_epoch(epoch, test_dataloader, model):
 
             alpha = 100  # weight for the first loss
             beta = 100  # weight for the second loss
-            the = 800
+            the = 100
 
             combined_loss = alpha * out_criterion_pose + beta * out_criterion_beta + the * out_criterion_pose_first
 

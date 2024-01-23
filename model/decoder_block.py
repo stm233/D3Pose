@@ -42,6 +42,7 @@ class DecoderBlock(nn.Module):
         self.norm4 = norm_layer(dim)
         self.norm5 = norm_layer(dim)
         self.norm6 = norm_layer(dim)
+        self.norm7 = norm_layer(dim)
         self.act_layer = nn.GELU
 
         # self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
@@ -52,18 +53,18 @@ class DecoderBlock(nn.Module):
         self.mlp2 = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=self.act_layer, drop=drop)
         self.mlp3 = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, act_layer=self.act_layer, drop=drop)
 
-    def forward(self, x, y):
+    def forward(self, encoder, decoder):
         temporal_attention_mask = calculate_temporal_mask(31)
 
         # first masked self-attention module
-        shortcut1 = x
-        x = self.norm1(x)
+        shortcut1 = decoder
+        decoder = self.norm1(decoder)
 
-        x = self.cross_att_module(x, x, temporal_attention_mask)
+        decoder = self.cross_att_module(decoder, decoder, temporal_attention_mask)
 
         # FFN
-        x = shortcut1 + x
-        x = x + self.mlp1(self.norm2(x))
+        decoder = shortcut1 + decoder
+        decoder = decoder + self.mlp1(self.norm2(decoder))
 
         # # second masked self-attention module
         # shortcut2 = x
@@ -75,12 +76,18 @@ class DecoderBlock(nn.Module):
         # x = x + self.mlp2(self.norm4(x))
 
         # the cross-attention module
-        shortcut3 = y
-        y = self.norm5(x)
-        y = self.cross_att_module(x, y)
+
+        shortcut3 = encoder
+        encoder = self.norm5(encoder)
+        decoder = self.norm7(decoder)
+
+        # encoder kv , decoder q
+        # the first param is for kv
+        # the second param is for q
+        cross_attention_output = self.cross_att_module(encoder, decoder)
 
         # FFN
-        y = shortcut3 + y
-        y = y + self.mlp3(self.norm6(x))
+        y = shortcut3 + cross_attention_output
+        y = y + self.mlp3(self.norm6(y))
 
         return y

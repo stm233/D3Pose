@@ -107,7 +107,7 @@ def parse_args(argv):
     parser = argparse.ArgumentParser(description="Example training script.")
 
     parser.add_argument(
-        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/h36m_data/validation/feature_maps',
+        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/h36m_data/train/feature_maps',
         help="testing dataset"
     )
 
@@ -128,7 +128,7 @@ def parse_args(argv):
                         help="gradient clipping max norm (default: %(default)s")
 
     parser.add_argument("--checkpoint",
-                        default="/home/hongji/Documents/save0.ckpt",  # ./train0008/18.ckpt
+                        default="/home/hongji/Documents/save1.ckpt",  # ./train0008/18.ckpt
                         type=str, help="Path to a checkpoint")
 
     args = parser.parse_args(argv)
@@ -235,8 +235,8 @@ def test_epoch(epoch, test_dataloader, model):
                 out_net = model(images, input_seq)  # GT.to(device)
                 out_net2 = model(images, GT.to(device))
 
-                input_seq[:, frame + 1] = GT[:, frame + 1]
-                # input_seq[:, frame + 1] = out_net[:, frame]
+                # input_seq[:, frame + 1] = GT[:, frame + 1]
+                input_seq[:, frame + 1] = out_net[:, frame]
 
             out_net_clean = out_net[:, :30, :]
             out_net2_clean = out_net2[:, :30, :]

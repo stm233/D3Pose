@@ -17,6 +17,7 @@ def process_images_and_gt(src_img_directory, dest_directory, gt_directory, camer
         subject = str(int(subject))
         action = str(int(action))  # Convert action index to integer and back to string to remove leading zero
         subaction = str(int(subaction))  # Same for subaction index
+        subject_list = ['s_01', 's_05', 's_06', 's_07', 's_08', 's_09', 's_11', ]
 
         # Check if the folder is for the first camera angle
         if camera in folder_name:
@@ -30,7 +31,7 @@ def process_images_and_gt(src_img_directory, dest_directory, gt_directory, camer
             images = sorted(os.listdir(folder_path))
             clip_count = 0
             prevTime = time.time()
-            for i in range(0, len(images), 30):
+            for i in range(0, len(images), 10):
                 if i + 30 <= len(images):
                     images_folder = []
                     clip_folder = f"{folder_name}_clip_{clip_count:02d}"
@@ -48,7 +49,15 @@ def process_images_and_gt(src_img_directory, dest_directory, gt_directory, camer
                     last_hidden_state = outputs.last_hidden_state
 
                     pt_name = clip_folder + '.pt'
-                    pt_dest_path = os.path.join(dest_directory, 'feature_maps')
+
+                    new_dest_directory = ''
+
+                    if any(subj in pt_name for subj in subject_list[:5]):
+                        new_dest_directory = os.path.join(dest_directory, 'train')
+                    elif any(subj in pt_name for subj in subject_list[-2:]):
+                        new_dest_directory = os.path.join(dest_directory, 'validation')
+
+                    pt_dest_path = os.path.join(new_dest_directory, 'feature_maps')
 
                     save_path = os.path.join(pt_dest_path, pt_name)
                     torch.save(last_hidden_state.detach(), save_path)
@@ -73,7 +82,7 @@ def process_images_and_gt(src_img_directory, dest_directory, gt_directory, camer
                     clip_gt_extended_np = clip_gt_extended.numpy()
 
                     np_file_name = clip_folder + '.npy'
-                    gt_path = os.path.join(dest_directory, 'gt')
+                    gt_path = os.path.join(new_dest_directory, 'gt')
                     np.save(os.path.join(gt_path, np_file_name), clip_gt_extended_np)
 
                     currTime = time.time()
@@ -124,18 +133,17 @@ def reorg(reorg_path, dest_path):
 if __name__ == '__main__':
 
     src_directory = '/media/hongji/Expansion//Human3.6M/images'
-    dest_directory = '/home/hongji/Documents/data/train'
+    dest_directory = '/home/hongji/Documents/h36m_data'
     gt_directory = '/media/hongji/Expansion//Human3.6M/annotations_smpl'
     model = CLIPVisionModel.from_pretrained("openai/clip-vit-base-patch32")
     processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
     model.to('cuda')
 
-    reorg_path = '/home/hongji/Documents/data/train'
-    dest_path = '/home/hongji/Documents/h36m_data'
+    # reorg_path = '/home/hongji/Documents/data/train'
+    # dest_path = '/home/hongji/Documents/h36m_data'
+    # reorg(reorg_path, dest_path)
 
-    reorg(reorg_path, dest_path)
 
-
-    # cameras = ['ca_01', 'ca_02', 'ca_03', 'ca_04']
-    # for cam in cameras:
-    #     process_images_and_gt(src_directory, dest_directory, gt_directory, cam, model)
+    cameras = ['ca_01', 'ca_02', 'ca_03', 'ca_04']
+    for cam in cameras:
+        process_images_and_gt(src_directory, dest_directory, gt_directory, cam, model)
