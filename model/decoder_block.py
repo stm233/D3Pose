@@ -36,6 +36,8 @@ class DecoderBlock(nn.Module):
             proj_drop=drop
         )
 
+        self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
+
         self.norm1 = norm_layer(dim)
         self.norm2 = norm_layer(dim)
         self.norm3 = norm_layer(dim)
@@ -63,8 +65,8 @@ class DecoderBlock(nn.Module):
         decoder = self.cross_att_module(decoder, decoder, temporal_attention_mask)
 
         # FFN
-        decoder = shortcut1 + decoder
-        decoder = decoder + self.mlp1(self.norm2(decoder))
+        decoder = self.drop_path(shortcut1) + self.drop_path(decoder)
+        decoder = decoder + self.drop_path(self.mlp1(self.norm2(decoder)))
 
         # # second masked self-attention module
         # shortcut2 = x

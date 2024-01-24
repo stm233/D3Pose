@@ -65,12 +65,12 @@ def parse_args(argv):
     # )
 
     parser.add_argument(
-        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/h36m_data/validation/feature_maps',
+        "-td", "--testing_Data", type=str, default='/home/hongji/Documents/h36m_data_no_sw/validation/feature_maps',
         help="testing dataset"
     )
 
     parser.add_argument(
-        "-d", "--Training_Data", type=str, default='/home/hongji/Documents/h36m_data/train/feature_maps',
+        "-d", "--Training_Data", type=str, default='/home/hongji/Documents/h36m_data_no_sw/train/feature_maps',
         help="Training dataset"
     )
     parser.add_argument("-e", "--epochs", default=1000000, type=int, help="Number of epochs (default: %(default)s)", )
@@ -213,11 +213,11 @@ def train_one_epoch(model, train_dataloader, optimizer, epoch, clip_max_norm):
         out_net_clean = out_net[:, :30, :]
         GT_clean = GT_npy[:, 1:, :]
 
-        beta_out = out_net_clean[:, 0, -10:]
+        beta_out = out_net_clean[:, 29, -10:]
         pose_out = out_net_clean[:, :, :72]
         pose_first_frame_out = pose_out[:, 0, :]
 
-        gt_beta = GT_clean[:, 0, -10:]
+        gt_beta = GT_clean[:, 29, -10:]
         gt_pose = GT_clean[:, :, :72]
         pose_first_frame_gt = gt_pose[:, 0, :]
 
@@ -232,7 +232,7 @@ def train_one_epoch(model, train_dataloader, optimizer, epoch, clip_max_norm):
         out_criterion_GTs = loss_function_GTs(srcGT.to(device),GT_npy.to(device))
 
         alpha = 100  # weight for the first loss
-        beta = 50  # weight for the second loss
+        beta = 200  # weight for the second loss
         theta = 100
 
         combined_loss = alpha * out_criterion_pose + beta * out_criterion_beta + theta * out_criterion_pose_first
@@ -244,7 +244,7 @@ def train_one_epoch(model, train_dataloader, optimizer, epoch, clip_max_norm):
             torch.nn.utils.clip_grad_norm_(model.parameters(), clip_max_norm)
         optimizer.step()
 
-        if i % 100 == 0:
+        if i % 300 == 0:
             enc_time = time.time() - start
             start = time.time()
             print(
@@ -279,11 +279,11 @@ def validate_epoch(epoch, test_dataloader, model):
             out_net_clean = out_net[:, :30, :]
             GT_clean = GT_npy[:, 1:, :]
 
-            beta_out = out_net_clean[:, 0, -10:]
+            beta_out = out_net_clean[:, 29, -10:]
             pose_out = out_net_clean[:, :, :72]
             pose_first_frame_out = pose_out[:, 0, :]
 
-            gt_beta = GT_clean[:, 0, -10:]
+            gt_beta = GT_clean[:, 29, -10:]
             gt_pose = GT_clean[:, :, :72]
             pose_first_frame_gt = gt_pose[:, 0, :]
 
@@ -296,7 +296,7 @@ def validate_epoch(epoch, test_dataloader, model):
             out_criterion_pose_first = loss_function_pose_first(pose_first_frame_out.to(device), pose_first_frame_gt.to(device))
 
             alpha = 100  # weight for the first loss
-            beta = 50  # weight for the second loss
+            beta = 200  # weight for the second loss
             theta = 100
 
             combined_loss = alpha * out_criterion_pose + beta * out_criterion_beta + theta * out_criterion_pose_first

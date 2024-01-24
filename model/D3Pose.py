@@ -17,9 +17,10 @@ class D3Pose(nn.Module):
                  mlp_ratio=4.,
                  qkv_bias=True,
                  qk_scale=None,
-                 drop_rate=0.2,
-                 attn_drop_rate=0.2,
-                 drop_path_rate=0.2,
+                 drop_rate=0.,
+                 attn_drop_rate=0.,
+                 drop_path_rate=0.,
+                 offset=0.4,
                  norm_layer=nn.LayerNorm,
                  patch_norm=True,
                  frozen_stages=-1,
@@ -34,6 +35,7 @@ class D3Pose(nn.Module):
         self.in_chans = in_chans
 
         self.pos_drop = nn.Dropout(p=drop_rate)
+        self.pos_drop2 = nn.Dropout(p=drop_rate+offset)
 
         # stochastic depth
         dpr = [x.item() for x in torch.linspace(0, drop_path_rate, sum(depths))]  # stochastic depth decay rule
@@ -63,6 +65,8 @@ class D3Pose(nn.Module):
                 inverse=False)
             self.encoder_layers.append(layer)
 
+        # dpr2 = [x.item() for x in torch.linspace(0, drop_path_rate, sum(depths))]  # stochastic depth decay rule
+
         # initialize decoder layers
         self.decoder_layers = nn.ModuleList()
         for i_layer in range(self.num_layers):
@@ -72,9 +76,9 @@ class D3Pose(nn.Module):
                 num_heads=num_heads[i_layer],
                 qkv_bias=qkv_bias,
                 qk_scale=qk_scale,
-                drop=drop_rate,
-                attn_drop=attn_drop_rate,
-                drop_path=dpr[sum(depths[:i_layer]):sum(depths[:i_layer + 1])],
+                drop=drop_rate+offset,
+                attn_drop=attn_drop_rate+offset,
+                drop_path=drop_path_rate+offset,
                 norm_layer=norm_layer,
                 downsample=PatchMerging if (i_layer < self.num_layers - 1) else None,
                 use_checkpoint=use_checkpoint,
@@ -117,7 +121,7 @@ class D3Pose(nn.Module):
         encoder_input = encoder_input.flatten(2).transpose(1, 2)
         encoder_input = self.pos_drop(encoder_input)
 
-        # preprocess decoder input
+        # preprocess decoder input with a bigger drop rate
         decoder_out = gt
 
         for i in range(self.num_layers):

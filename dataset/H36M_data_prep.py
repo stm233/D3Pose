@@ -31,7 +31,7 @@ def process_images_and_gt(src_img_directory, dest_directory, gt_directory, camer
             images = sorted(os.listdir(folder_path))
             clip_count = 0
             prevTime = time.time()
-            for i in range(0, len(images), 10):
+            for i in range(0, len(images), 30):
                 if i + 30 <= len(images):
                     images_folder = []
                     clip_folder = f"{folder_name}_clip_{clip_count:02d}"
@@ -44,9 +44,9 @@ def process_images_and_gt(src_img_directory, dest_directory, gt_directory, camer
                         image = Image.open(image_path)
                         images_folder.append(image)
 
-                    CLIP_inputs = processor(images=images_folder, return_tensors="pt")
-                    outputs = model(**CLIP_inputs.to('cuda'))
-                    last_hidden_state = outputs.last_hidden_state
+                    # CLIP_inputs = processor(images=images_folder, return_tensors="pt")
+                    # outputs = model(**CLIP_inputs.to('cuda'))
+                    # last_hidden_state = outputs.last_hidden_state
 
                     pt_name = clip_folder + '.pt'
 
@@ -60,15 +60,17 @@ def process_images_and_gt(src_img_directory, dest_directory, gt_directory, camer
                     pt_dest_path = os.path.join(new_dest_directory, 'feature_maps')
 
                     save_path = os.path.join(pt_dest_path, pt_name)
-                    torch.save(last_hidden_state.detach(), save_path)
+                    # torch.save(last_hidden_state.detach(), save_path)
 
                     # Extract and save corresponding GT data
                     gt_clip_data = [gt_data[action][subaction][str(i + frame)] for frame in range(30)]
 
+                    single_beta = gt_clip_data[0]['shape']
+
                     processed_data = []
                     for frame_data in gt_clip_data:
                         # Concatenate 'pose', 'shape', into a single array
-                        frame_array = np.concatenate([frame_data['pose'], frame_data['shape']])
+                        frame_array = np.concatenate([frame_data['pose'], single_beta])
                         processed_data.append(frame_array)
 
                     # Stack all frame arrays into a single 30x82 array
@@ -133,7 +135,7 @@ def reorg(reorg_path, dest_path):
 if __name__ == '__main__':
 
     src_directory = '/media/hongji/Expansion//Human3.6M/images'
-    dest_directory = '/home/hongji/Documents/h36m_data'
+    dest_directory = '/home/hongji/Documents/h36m_data_no_sw'
     gt_directory = '/media/hongji/Expansion//Human3.6M/annotations_smpl'
     model = CLIPVisionModel.from_pretrained("openai/clip-vit-base-patch32")
     processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
