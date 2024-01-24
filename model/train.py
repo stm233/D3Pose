@@ -173,13 +173,10 @@ class myDataset(Dataset):
         GT_npy = torch.from_numpy(np.array(np.load(gt_path), dtype='f'))
 
         # mu + sigma * random_number
-        random_tensor = GT_npy + 0.2 * torch.randn_like(GT_npy)
 
-        # Set the first column to zero
-        random_tensor[:, 0] = 0
         # GT_npy = random_tensor
 
-        return spatial_feature_map, random_tensor, GT_npy
+        return spatial_feature_map, GT_npy, GT_npy
 
     def __len__(self):
         return len(self.clipTensor)
@@ -195,6 +192,15 @@ def train_one_epoch(model, train_dataloader, optimizer, epoch, clip_max_norm):
     for i, d in enumerate(train_dataloader):
 
         Images, srcGT, GT_npy = d
+
+        random_tensor = GT_npy + 0 * torch.randn_like(GT_npy) * optimizer.param_groups[0]['lr']
+
+        # Set the first row to zero
+        random_tensor[:, 0] = 0
+        # random_tensor[:, 0, :] = 0
+
+        srcGT = random_tensor
+
         Images = Images.to(device)
         srcGT = srcGT.to(device)
         GT_npy = GT_npy.to(device)
@@ -207,13 +213,13 @@ def train_one_epoch(model, train_dataloader, optimizer, epoch, clip_max_norm):
         out_net_clean = out_net[:, :30, :]
         GT_clean = GT_npy[:, 1:, :]
 
-        beta_out = out_net_clean[:, -1, -10:]
+        beta_out = out_net_clean[:, 0, -10:]
         pose_out = out_net_clean[:, :, :72]
         pose_first_frame_out = pose_out[:, 0, :]
 
-        gt_beta = GT_clean[:, -1, -10:]
+        gt_beta = GT_clean[:, 0, -10:]
         gt_pose = GT_clean[:, :, :72]
-        pose_first_frame_gt = gt_pose[:, 1, :]
+        pose_first_frame_gt = gt_pose[:, 0, :]
 
         loss_function_beta = torch.nn.MSELoss(reduction='mean')
         loss_function_pose = torch.nn.MSELoss(reduction='mean')
@@ -226,10 +232,10 @@ def train_one_epoch(model, train_dataloader, optimizer, epoch, clip_max_norm):
         out_criterion_GTs = loss_function_GTs(srcGT.to(device),GT_npy.to(device))
 
         alpha = 100  # weight for the first loss
-        beta = 100  # weight for the second loss
-        the = 100
+        beta = 50  # weight for the second loss
+        theta = 100
 
-        combined_loss = alpha * out_criterion_pose + beta * out_criterion_beta + the * out_criterion_pose_first
+        combined_loss = alpha * out_criterion_pose + beta * out_criterion_beta + theta * out_criterion_pose_first
         # combined_loss = the * out_criterion_pose_first
 
         combined_loss.backward()
@@ -260,7 +266,7 @@ def validate_epoch(epoch, test_dataloader, model):
     device = next(model.parameters()).device
 
     loss = AverageMeter()
-    loss_function = torch.nn.MSELoss(reduction='mean')
+    # loss_function = torch.nn.MSELoss(reduction='mean')
     # accu_num = torch.zeros(1).to(device)  # 累计预测正确的样本数
     sample_num = 0
 
@@ -273,11 +279,11 @@ def validate_epoch(epoch, test_dataloader, model):
             out_net_clean = out_net[:, :30, :]
             GT_clean = GT_npy[:, 1:, :]
 
-            beta_out = out_net_clean[:, -1, -10:]
+            beta_out = out_net_clean[:, 0, -10:]
             pose_out = out_net_clean[:, :, :72]
             pose_first_frame_out = pose_out[:, 0, :]
 
-            gt_beta = GT_clean[:, -1, -10:]
+            gt_beta = GT_clean[:, 0, -10:]
             gt_pose = GT_clean[:, :, :72]
             pose_first_frame_gt = gt_pose[:, 0, :]
 
@@ -290,10 +296,10 @@ def validate_epoch(epoch, test_dataloader, model):
             out_criterion_pose_first = loss_function_pose_first(pose_first_frame_out.to(device), pose_first_frame_gt.to(device))
 
             alpha = 100  # weight for the first loss
-            beta = 100  # weight for the second loss
-            the = 100
+            beta = 50  # weight for the second loss
+            theta = 100
 
-            combined_loss = alpha * out_criterion_pose + beta * out_criterion_beta + the * out_criterion_pose_first
+            combined_loss = alpha * out_criterion_pose + beta * out_criterion_beta + theta * out_criterion_pose_first
 
             loss.update(combined_loss)
 
@@ -349,7 +355,7 @@ def main(argv):
     #     net = CustomDataParallel(net)
 
     optimizer = configure_optimizers(net, args)
-    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min", factor=0.3, patience=4)
+    lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min", factor=0.8, patience=4)
     # criterion = RateDistortionLoss(lmbda=args.lmbda)
 
     last_epoch = 0
