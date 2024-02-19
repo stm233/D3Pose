@@ -7,10 +7,11 @@ import shutil
 import numpy as np
 from transformers import CLIPProcessor,  CLIPVisionModel
 import time
+from tqdm import tqdm
 
 
 def process_images_and_gt(src_img_directory, dest_directory, gt_directory, camera, model):
-    for folder_name in os.listdir(src_img_directory):
+    for folder_name in tqdm(os.listdir(src_img_directory)):
         # Extract subject, action, subaction from folder name
         parts = folder_name.split('_')
         subject, action, subaction = parts[1], parts[3], parts[5]
@@ -31,7 +32,7 @@ def process_images_and_gt(src_img_directory, dest_directory, gt_directory, camer
             images = sorted(os.listdir(folder_path))
             clip_count = 0
             prevTime = time.time()
-            for i in range(0, len(images), 30):
+            for i in tqdm(range(0, len(images), 30)):
                 if i + 30 <= len(images):
                     images_folder = []
                     clip_folder = f"{folder_name}_clip_{clip_count:02d}"
@@ -44,41 +45,42 @@ def process_images_and_gt(src_img_directory, dest_directory, gt_directory, camer
                         image = Image.open(image_path)
                         images_folder.append(image)
 
-                    # CLIP_inputs = processor(images=images_folder, return_tensors="pt")
-                    # outputs = model(**CLIP_inputs.to('cuda'))
-                    # last_hidden_state = outputs.last_hidden_state
+                    CLIP_inputs = processor(images=images_folder, return_tensors="pt")
+                    outputs = model(**CLIP_inputs.to('cuda'))
+                    last_hidden_state = outputs.last_hidden_state
 
                     pt_name = clip_folder + '.pt'
 
                     new_dest_directory = ''
 
-                    if any(subj in pt_name for subj in subject_list[:5]):
-                        new_dest_directory = os.path.join(dest_directory, 'train')
-                    elif any(subj in pt_name for subj in subject_list[-2:]):
-                        new_dest_directory = os.path.join(dest_directory, 'validation')
+                    new_dest_directory = os.path.join(dest_directory, 'train')
+                    # if any(subj in pt_name for subj in subject_list[:5]):
+                    #     new_dest_directory = os.path.join(dest_directory, 'train')
+                    # elif any(subj in pt_name for subj in subject_list[-2:]):
+                    #     new_dest_directory = os.path.join(dest_directory, 'validation')
 
                     pt_dest_path = os.path.join(new_dest_directory, 'feature_maps')
 
                     save_path = os.path.join(pt_dest_path, pt_name)
-                    # torch.save(last_hidden_state.detach(), save_path)
+                    torch.save(last_hidden_state.detach(), save_path)
 
                     # Extract and save corresponding GT data
                     gt_clip_data = [gt_data[action][subaction][str(i + frame)] for frame in range(30)]
 
-                    single_beta = gt_clip_data[0]['shape']
+                    # single_beta = gt_clip_data[0]['shape']
 
                     processed_data = []
                     for frame_data in gt_clip_data:
                         # Concatenate 'pose', 'shape', into a single array
-                        frame_array = np.concatenate([frame_data['pose'], single_beta])
-                        processed_data.append(frame_array)
+                        # frame_array = np.concatenate([frame_data['pose'], single_beta])
+                        processed_data.append(frame_data['pose'])
 
                     # Stack all frame arrays into a single 30x82 array
                     final_array = np.stack(processed_data)
                     clip_gt = torch.from_numpy(final_array)
 
                     # adding a row of zeros at the beginning
-                    zeros = torch.zeros(1, 82)
+                    zeros = torch.zeros(1, 72)
                     clip_gt_extended = torch.cat((zeros, clip_gt), dim=0)
                     clip_gt_extended = clip_gt_extended.cpu()
                     clip_gt_extended_np = clip_gt_extended.numpy()
@@ -89,8 +91,19 @@ def process_images_and_gt(src_img_directory, dest_directory, gt_directory, camer
 
                     currTime = time.time()
                     elapsed_time = currTime - prevTime
-                    print(clip_folder + 'time elapsed: ' + str(elapsed_time) + ' s')
+                    # print(clip_folder + 'time elapsed: ' + str(elapsed_time) + ' s')
                     prevTime = currTime
+
+                    if any(subj in pt_name for subj in subject_list[-2:]):
+                        new_dest_directory = os.path.join(dest_directory, 'validation')
+                        pt_dest_path = os.path.join(new_dest_directory, 'feature_maps')
+
+                        save_path = os.path.join(pt_dest_path, pt_name)
+                        torch.save(last_hidden_state.detach(), save_path)
+
+                        gt_path = os.path.join(new_dest_directory, 'gt')
+                        np.save(os.path.join(gt_path, np_file_name), clip_gt_extended_np)
+
                     clip_count += 1
 
 def reorg(reorg_path, dest_path):
@@ -135,7 +148,7 @@ def reorg(reorg_path, dest_path):
 if __name__ == '__main__':
 
     src_directory = '/media/hongji/Expansion//Human3.6M/images'
-    dest_directory = '/home/hongji/Documents/h36m_data_no_sw'
+    dest_directory = '/media/hongji/4T_2/'
     gt_directory = '/media/hongji/Expansion//Human3.6M/annotations_smpl'
     model = CLIPVisionModel.from_pretrained("openai/clip-vit-base-patch32")
     processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")

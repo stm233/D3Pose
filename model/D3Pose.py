@@ -13,13 +13,13 @@ class D3Pose(nn.Module):
                  embed_dim=48,
                  depths=[2, 2, 6, 2],
                  num_heads=[3, 6, 12, 24],
-                 window_size=7,
+                 window_size=5,
                  mlp_ratio=4.,
                  qkv_bias=True,
                  qk_scale=None,
                  drop_rate=0.,
                  attn_drop_rate=0.,
-                 drop_path_rate=0.,
+                 drop_path_rate=0.2,
                  offset=0.4,
                  norm_layer=nn.LayerNorm,
                  patch_norm=True,
@@ -96,6 +96,18 @@ class D3Pose(nn.Module):
             )
             self.regressor_heads.append(layer)
 
+        # self.outputHead = nn.Sequential(
+        #     conv3x3(embed_dim * 8, embed_dim * 2),
+        #     nn.GELU(),
+        #     # conv3x3(embed_dim * 2, embed_dim // 2),
+        #     # nn.GELU(),
+        #     # conv3x3(embed_dim // 2, embed_dim // 8),
+        #     # nn.GELU(),
+        #     conv3x3(embed_dim*2 , 31),
+        # )
+        # self.regressHead = nn.Linear(13 * 12, 82)
+        # self.sigmoid = nn.Sigmoid()
+
     def init_weights(self):
         for m in self.modules():
             if isinstance(m, (nn.Conv2d, nn.ConvTranspose2d)):
@@ -121,8 +133,9 @@ class D3Pose(nn.Module):
         encoder_input = encoder_input.flatten(2).transpose(1, 2)
         encoder_input = self.pos_drop(encoder_input)
 
-        # preprocess decoder input with a bigger drop rate
         decoder_out = gt
+
+        encoder_head = encoder_input
 
         for i in range(self.num_layers):
             encoder_block = self.encoder_layers[i]
@@ -145,6 +158,10 @@ class D3Pose(nn.Module):
             decoder_block = self.decoder_layers[i]
             decoder_out = decoder_block(encoder_head, decoder_out)
 
-        out = decoder_out
+        # encoder_out = encoder_out.view(-1, int(WH), int(WW), C).permute(0, 3, 1, 2).contiguous()
+        # encoder_head = self.outputHead(encoder_out)
+        # encoder_head = encoder_head.view(-1, 31, 13*12)
+        # encoder_head = self.regressHead(encoder_head)
+        # encoder_head = self.sigmoid(encoder_head)
 
-        return out
+        return encoder_head

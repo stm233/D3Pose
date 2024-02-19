@@ -85,10 +85,10 @@ def parse_args(argv):
         help="Size of the patches to be cropped (default: %(default)s)",
     )
     parser.add_argument(
-        "--batch-size", type=int, default=82, help="Batch size (default: %(default)s)"
+        "--batch-size", type=int, default=40, help="Batch size (default: %(default)s)"
     )
     parser.add_argument(
-        "--test-batch-size", type=int, default=90, help="Test batch size (default: %(default)s)",
+        "--test-batch-size", type=int, default=40, help="Test batch size (default: %(default)s)",
     )
     parser.add_argument("--cuda", default=True, action="store_true", help="Use cuda")
     parser.add_argument(
@@ -167,10 +167,14 @@ class myDataset(Dataset):
         gt_folder_path = os.path.join(folder_path, 'gt')
         gt_path = os.path.join(gt_folder_path, gt_name)
 
-        spatial_feature_map = torch.load(spatial_feature_map_path, map_location=lambda storage, loc: storage)
-        spatial_feature_map = spatial_feature_map.view(30, 200, 192)
+        with torch.no_grad():
+            spatial_feature_map = torch.load(spatial_feature_map_path, map_location=lambda storage, loc: storage)
+            spatial_feature_map = spatial_feature_map.view(30, 200, 192)
+            spatial_feature_map.requires_grad = False
 
-        GT_npy = torch.from_numpy(np.array(np.load(gt_path), dtype='f'))
+            GT_npy = torch.from_numpy(np.array(np.load(gt_path), dtype='f'))
+            GT_npy.requires_grad = False
+            # print(GT_npy.dtype)
 
         # mu + sigma * random_number
 
@@ -231,9 +235,9 @@ def train_one_epoch(model, train_dataloader, optimizer, epoch, clip_max_norm):
         out_criterion_pose_first = loss_function_pose_first(pose_first_frame_out.to(device), pose_first_frame_gt.to(device))
         out_criterion_GTs = loss_function_GTs(srcGT.to(device),GT_npy.to(device))
 
-        alpha = 100  # weight for the first loss
-        beta = 200  # weight for the second loss
-        theta = 100
+        alpha = 1  # weight for the first loss
+        beta = 0  # weight for the second loss
+        theta = 0
 
         combined_loss = alpha * out_criterion_pose + beta * out_criterion_beta + theta * out_criterion_pose_first
         # combined_loss = the * out_criterion_pose_first
@@ -259,6 +263,8 @@ def train_one_epoch(model, train_dataloader, optimizer, epoch, clip_max_norm):
                 # f'\tacc: {accu_num.item() / sample_num:.4f} |'
                 f"\ttime: {enc_time:.1f}"
             )
+        if i > 300:
+            break
 
 
 def validate_epoch(epoch, test_dataloader, model):
@@ -295,13 +301,15 @@ def validate_epoch(epoch, test_dataloader, model):
             out_criterion_pose = loss_function_pose(pose_out.to(device), gt_pose.to(device))
             out_criterion_pose_first = loss_function_pose_first(pose_first_frame_out.to(device), pose_first_frame_gt.to(device))
 
-            alpha = 100  # weight for the first loss
-            beta = 200  # weight for the second loss
-            theta = 100
+            alpha = 1  # weight for the first loss
+            beta = 0  # weight for the second loss
+            theta = 0
 
             combined_loss = alpha * out_criterion_pose + beta * out_criterion_beta + theta * out_criterion_pose_first
 
             loss.update(combined_loss)
+            # if sample_num > 1200:
+            #     break
 
     print(
         f"Test epoch {epoch}: Average losses:"
@@ -321,7 +329,7 @@ def main(argv):
         torch.manual_seed(args.seed)
         random.seed(args.seed)
 
-    train_transforms = transforms.Compose([Resizer()])
+    train_transforms = transforms.Compose([])
 
     # test_transforms = transforms.Compose([Resizer()])
     print('loading datasets')
@@ -349,11 +357,6 @@ def main(argv):
     net = D3Pose()
     net = net.to(device)
 
-    # print('GPU:',torch.cuda.device_count())
-    #
-    # if args.cuda and torch.cuda.device_count() > 1:
-    #     net = CustomDataParallel(net)
-
     optimizer = configure_optimizers(net, args)
     lr_scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, "min", factor=0.8, patience=4)
     # criterion = RateDistortionLoss(lmbda=args.lmbda)
@@ -364,18 +367,6 @@ def main(argv):
         checkpoint = torch.load(args.checkpoint, map_location=device)
         last_epoch = checkpoint["epoch"] + 1
         new_state_dict = checkpoint["state_dict"]
-        # new_state_dict = OrderedDict()
-
-        # for k, v in checkpoint["state_dict"].items():
-        #     # if 'gaussian_conditional' in k:
-        #     #     new_state_dict[k]=v
-        #     #     print(k)
-        #     #     continue
-        #     # if 'module' not in k:
-        #     k = k[7:]
-        #     # else:
-        #     #     k = k.replace('features.module.', 'module.features.')
-        #     new_state_dict[k]=v
 
         net.load_state_dict(new_state_dict)
 
